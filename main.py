@@ -228,6 +228,8 @@ def main():
     journal_open = False
     journal_scroll = 0
 
+    debug_hud = False
+
     # ---- window drag (Ctrl + Left Drag) ----
     dragging_window = False
     drag_offset = (0, 0)  # client coords offset from window top-left
@@ -262,7 +264,8 @@ def main():
             btns = [btn_snack, btn_pet, btn_light, talk.btn_talk, *gear.all_buttons_for_draw()]
             draw_frame(
                 screen, font, font_small, sprites, g, btns, pygame.mouse.get_pos(),
-                gear=gear, talk=talk, wardrobe=wardrobe, journal_open=journal_open, journal_scroll=journal_scroll
+                gear=gear, talk=talk, wardrobe=wardrobe, journal_open=journal_open, journal_scroll=journal_scroll,
+                debug_lines=None
             )
             # context menu is ignored during exit animation
             pygame.display.flip()
@@ -693,6 +696,11 @@ def main():
                         talk.close()
                         journal_open = False
 
+                if e.key == pygame.K_F1:
+                    debug_hud = not debug_hud
+                    set_line(g, now, "デバッグ表示 ON" if debug_hud else "デバッグ表示 OFF", (0.8, 1.4))
+                    continue
+
                 if e.key == pygame.K_b:
                     cycle_bg(g, +1)
                     set_line(g, now, "背景チェンジ。", (1.2, 2.0))
@@ -749,12 +757,23 @@ def main():
         # wardrobe outfits list (auto from loaded sprites)
         outfits = sorted({k[len("clothes_"):] for k in sprites.keys() if k.startswith("clothes_")})
         wardrobe.relayout(outfits, sprites)
-
         btns = [btn_snack, btn_pet, btn_light, talk.btn_talk, *gear.all_buttons_for_draw()]
-            # wardrobe buttons are drawn inside draw_frame, but keep hover calc independent
+        # wardrobe buttons are drawn inside draw_frame, but keep hover calc independent
+        debug_lines = None
+        if debug_hud:
+            debug_lines = [
+                f"dt:{dt:.3f}  fps:{(1.0/dt):.1f}" if dt > 0 else "dt:0",
+                f"state:{getattr(g,'state','')} expr:{getattr(g,'expression','')} lights:{'OFF' if getattr(g,'lights_off',False) else 'ON'}",
+                f"outfit:{getattr(g,'outfit','')}  bg:{getattr(g,'bg_index',0)}",
+                f"talk_open:{getattr(talk,'open',False)} page:{getattr(talk,'page',0)} cat:{getattr(talk,'active_cat','')}",
+                f"gear_open:{getattr(gear,'open',False)}  wardrobe_open:{getattr(wardrobe,'open',False)} page:{getattr(wardrobe,'page',0)}",
+                f"x_off:{getattr(g,'x_offset',0):.1f} vx:{getattr(g,'vx_px_per_sec',0):.1f}" if hasattr(g,'x_offset') or hasattr(g,'vx_px_per_sec') else None,
+            ]
+
         draw_frame(
             screen, font, font_small, sprites, g, btns, pygame.mouse.get_pos(),
-            gear=gear, talk=talk, wardrobe=wardrobe, journal_open=journal_open, journal_scroll=journal_scroll
+            gear=gear, talk=talk, wardrobe=wardrobe, journal_open=journal_open, journal_scroll=journal_scroll,
+            debug_lines=debug_lines
         )
 
         # 右クリックメニュー描画

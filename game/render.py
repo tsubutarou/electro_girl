@@ -31,6 +31,7 @@ def draw_frame(
     wardrobe=None,
     journal_open: bool = False,
     journal_scroll: int = 0,
+    debug_lines=None,
 ):
     # ---- background ----
     bg = cfg.BG_THEMES[g.bg_index % len(cfg.BG_THEMES)]["bg"] if cfg.BG_THEMES else (25, 25, 32)
@@ -222,3 +223,23 @@ def draw_frame(
     mx, my = mouse_pos
     for b in btns:
         b.draw(screen, font_small, b.hit((mx, my)))
+
+    # ---- debug HUD (F1) ----
+    if debug_lines:
+        pad = 6
+        lines = [str(x) for x in debug_lines if x is not None]
+        if lines:
+            w = max(font_small.size(s)[0] for s in lines) + pad * 2
+            h = (font_small.get_height() + 2) * len(lines) + pad * 2
+            w = min(w, cfg.W - 16)
+            h = min(h, cfg.H - 16)
+            panel = pygame.Rect(8, 8, w, h)
+            surf = pygame.Surface((panel.w, panel.h), pygame.SRCALPHA)
+            surf.fill((0, 0, 0, 140))
+            screen.blit(surf, panel.topleft)
+            pygame.draw.rect(screen, (200, 200, 220), panel, 1, 8)
+
+            y = panel.y + pad
+            for s in lines:
+                screen.blit(font_small.render(s, True, (240, 240, 250)), (panel.x + pad, y))
+                y += font_small.get_height() + 2
