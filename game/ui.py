@@ -208,6 +208,7 @@ class GearMenu:
         self.btn_gear = Button((cfg.W - 34, 8, 26, 22), "⚙")
         self.open = False
 
+        # settings items (add more freely; layout/paging won't break)
         self.item_bg = Button((0, 0, 0, 0), "BG ▶")
         self.item_frame = Button((0, 0, 0, 0), "FRAME:ON")
         self.item_dock = Button((0, 0, 0, 0), "DOCK:ON")
@@ -218,51 +219,101 @@ class GearMenu:
         self.item_log = Button((0, 0, 0, 0), "LOG")
         self.item_outfit = Button((0, 0, 0, 0), "OUT:normal")
 
-        self.items = [self.item_bg, self.item_frame, self.item_dock, self.item_top, self.item_mute, self.item_up, self.item_down, self.item_outfit, self.item_log]
+        self.items = [
+            self.item_bg,
+            self.item_frame,
+            self.item_dock,
+            self.item_top,
+            self.item_mute,
+            self.item_up,
+            self.item_down,
+            self.item_outfit,
+            self.item_log,
+        ]
+
+        # paging (future-proof when items grow)
+        self.page = 0
+        self._max_pages = 1
+        self._cols = 2
+
+        # page nav (only shown when max_pages > 1)
+        self.btn_prev = Button((0, 0, 0, 0), "◀")
+        self.btn_next = Button((0, 0, 0, 0), "▶")
+        self.page_label = Button((0, 0, 0, 0), "1/1")  # non-click; drawn via Button
+
         self.panel = pygame.Rect(0, 0, 0, 0)
         self.relayout()
 
     def relayout(self):
-
+        # ---- geometry ----
         w, h = 96, 22
-        cols = 2
+        cols = self._cols
         gap_x = 6
         gap_y = 6
 
         y0 = self.btn_gear.rect.bottom + 6
+        max_h = (cfg.H - 8) - y0
+        max_h = max(80, max_h)  # safety for tiny windows
 
-        # compute rows and panel size
+        # header area for paging controls
+        header_h = 22
+
+        # how many rows fit (at least 1)
+        rows_fit = max(
+            1,
+            int((max_h - 12 - header_h + gap_y) // (h + gap_y)),
+        )
+        page_size = rows_fit * cols
+
         n = len(self.items)
-        rows = max(1, (n + cols - 1) // cols)
+        self._max_pages = max(1, (n + page_size - 1) // page_size)
+        self.page = max(0, min(self.page, self._max_pages - 1))
+
         panel_w = cols * w + (cols - 1) * gap_x + 12
-        panel_h = rows * h + (rows - 1) * gap_y + 12
+        panel_h = header_h + rows_fit * h + (rows_fit - 1) * gap_y + 12
 
         x0 = cfg.W - panel_w - 8
-        x = x0 + 6
-        y = y0 + 6
-
-        for i, b in enumerate(self.items):
-            col = i % cols
-            row = i // cols
-            bx = x + col * (w + gap_x)
-            by = y + row * (h + gap_y)
-            b.rect = pygame.Rect(bx, by, w, h)
-
         self.panel = pygame.Rect(x0, y0, panel_w, panel_h)
 
-        # keep inside the window: if off-screen bottom, shift up
+        # keep panel inside window vertically (top/bottom)
         overflow = self.panel.bottom - (cfg.H - 8)
         if overflow > 0:
-            for b in self.items:
-                b.rect.y -= overflow
             self.panel.y -= overflow
-
-        # keep a small top margin too
         underflow = 8 - self.panel.top
         if underflow > 0:
-            for b in self.items:
-                b.rect.y += underflow
             self.panel.y += underflow
+
+        # ---- paging controls rects ----
+        if self._max_pages > 1:
+            self.btn_prev.rect = pygame.Rect(self.panel.right - 68, self.panel.top + 6, 20, 18)
+            self.btn_next.rect = pygame.Rect(self.panel.right - 24, self.panel.top + 6, 20, 18)
+            self.page_label.rect = pygame.Rect(self.panel.right - 46, self.panel.top + 6, 22, 18)
+            self.page_label.label = f"{self.page + 1}/{self._max_pages}"
+        else:
+            self.btn_prev.rect = pygame.Rect(0, 0, 0, 0)
+            self.btn_next.rect = pygame.Rect(0, 0, 0, 0)
+            self.page_label.rect = pygame.Rect(0, 0, 0, 0)
+            self.page_label.label = "1/1"
+
+        # ---- lay out visible items ----
+        start = self.page * page_size
+        end = start + page_size
+
+        # anchor for grid
+        x = self.panel.left + 6
+        y = self.panel.top + 6 + header_h
+
+        for i, b in enumerate(self.items):
+            if start <= i < end:
+                local = i - start
+                col = local % cols
+                row = local // cols
+                bx = x + col * (w + gap_x)
+                by = y + row * (h + gap_y)
+                b.rect = pygame.Rect(bx, by, w, h)
+            else:
+                # hide (prevents phantom clicks)
+                b.rect = pygame.Rect(0, 0, 0, 0)
 
     def update_labels(self, g: Girl):
         self.item_frame.label = "FRAME:OFF" if getattr(g, "borderless", False) else "FRAME:ON"
@@ -276,21 +327,36 @@ class GearMenu:
 
     def toggle(self):
         self.open = not self.open
+        if self.open:
+            self.relayout()
 
     def close(self):
         self.open = False
 
+    def page_prev(self):
+        if self._max_pages <= 1:
+            return
+        self.page = (self.page - 1) % self._max_pages
+        self.relayout()
+
+    def page_next(self):
+        if self._max_pages <= 1:
+            return
+        self.page = (self.page + 1) % self._max_pages
+        self.relayout()
+
     def hit_any(self, pos) -> bool:
-        if self.btn_gear.hit(pos):
-            return True
-        if self.open and self.panel.collidepoint(pos):
-            return True
-        return False
+        if not self.open:
+            return False
+        return self.panel.collidepoint(pos)
 
     def all_buttons_for_draw(self):
-        return [self.btn_gear, *self.items] if self.open else [self.btn_gear]
-
-
+        if not self.open:
+            return [self.btn_gear]
+        btns = [self.btn_gear, *self.items]
+        if self._max_pages > 1:
+            btns.extend([self.btn_prev, self.page_label, self.btn_next])
+        return btns
 class TalkMenu:
     def __init__(self):
         self.btn_talk = Button((cfg.W - 64, cfg.H - 44, 56, 32), "TALK")

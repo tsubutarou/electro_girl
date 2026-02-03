@@ -555,6 +555,12 @@ def main():
                     continue
 
                 if gear.open:
+                    if gear.btn_prev.hit(pos):
+                        gear.page_prev()
+                        continue
+                    if gear.btn_next.hit(pos):
+                        gear.page_next()
+                        continue
                     if gear.item_bg.hit(pos):
                         cycle_bg(g, +1)
                         set_line(g, now, "背景チェンジ。", (1.2, 2.0))
