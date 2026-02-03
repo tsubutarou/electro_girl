@@ -3,7 +3,6 @@ import random
 import time
 
 from .model import Girl, clamp
-from .snacks import Snack
 from .dialogue import Dialogue, set_line
 from . import config as cfg
 
@@ -35,68 +34,11 @@ def step_sim(g: Girl, now: float, dt: float):
     elif g.state == "grumpy":
         g.mood = clamp(g.mood - 0.02 * dt)
 
-    step_move(g, now, dt)
 
-
-def step_move(g: Girl, now: float, dt: float):
-    """Simple x-axis wandering inside the right panel.
-
-    We store x_offset as a pixel offset from the right panel center.
-    """
-    # Don't wander while sleeping / lights off
-    if getattr(g, "lights_off", False) or getattr(g, "state", "") == "sleep":
-        g.vx_px_per_sec = 0.0
-        return
-
-    # limits
-    half = cfg.RIGHT_PANEL_W / 2.0
-    lim = max(0.0, half - float(getattr(cfg, "WALK_MARGIN_PX", 18)))
-
-    # walking window
-    if now < getattr(g, "walk_until", 0.0):
-        g.x_offset = float(getattr(g, "x_offset", 0.0)) + float(getattr(g, "vx_px_per_sec", 0.0)) * dt
-        if g.x_offset > lim:
-            g.x_offset = lim
-            g.vx_px_per_sec = -abs(float(getattr(g, "vx_px_per_sec", 0.0)) or cfg.WALK_SPEED_PX_PER_SEC)
-        elif g.x_offset < -lim:
-            g.x_offset = -lim
-            g.vx_px_per_sec = abs(float(getattr(g, "vx_px_per_sec", 0.0)) or cfg.WALK_SPEED_PX_PER_SEC)
-        return
-
-    # resting
-    if now < getattr(g, "next_walk_at", 0.0):
-        g.vx_px_per_sec = 0.0
-        return
-
-    # start a new walk
-    dur = random.uniform(cfg.WALK_MIN_SEC, cfg.WALK_MAX_SEC)
-    rest = random.uniform(cfg.WALK_REST_MIN_SEC, cfg.WALK_REST_MAX_SEC)
-    g.walk_until = now + dur
-    g.next_walk_at = g.walk_until + rest
-    sign = -1.0 if random.random() < 0.5 else 1.0
-    g.vx_px_per_sec = sign * float(cfg.WALK_SPEED_PX_PER_SEC)
-
-
-def action_snack(g: Girl, snack: Snack | None = None, now: float | None = None):
-    """Apply a snack.
-
-    snack is optional for backward compatibility; if None, use legacy constants.
-    """
-    if snack is None:
-        g.hunger = clamp(g.hunger + cfg.SNACK_HUNGER_RECOVER)
-        g.mood = clamp(g.mood + 3)
-        g.affection += 1
-        return
-
-    g.hunger = clamp(g.hunger + float(snack.hunger))
-    g.mood = clamp(g.mood + float(snack.mood))
-    g.affection += int(snack.affection)
-
-    if now is None:
-        now = time.time()
-    g.last_snack_id = snack.id
-    g.last_snack_at = float(now)
-    g.snack_count = int(getattr(g, "snack_count", 0)) + 1
+def action_snack(g: Girl):
+    g.hunger = clamp(g.hunger + cfg.SNACK_HUNGER_RECOVER)
+    g.mood = clamp(g.mood + 3)
+    g.affection += 1
 
 
 def action_pet(g: Girl):

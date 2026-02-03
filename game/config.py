@@ -12,22 +12,9 @@ SFX_DIR = os.path.join(ASSETS, "sfx")
 DLG_PATH = os.path.join(ASSETS, "dialogue", "lines.json")
 TOPICS_PATH = os.path.join(ASSETS, "dialogue", "topics.json")
 
-# snacks (data-driven)
-SNACKS_DIR = os.path.join(ASSETS, "snacks")
-SNACKS_PATH = os.path.join(SNACKS_DIR, "snacks.json")
-SNACKS_ICON_DIR = os.path.join(SNACKS_DIR, "icons")
-
 LEFT_X = 12
 RIGHT_PANEL_W = 128
 RIGHT_X = W - RIGHT_PANEL_W - 20
-
-# movement (x-axis wander) inside right panel
-WALK_SPEED_PX_PER_SEC = 24.0
-WALK_MIN_SEC = 1.4
-WALK_MAX_SEC = 3.6
-WALK_REST_MIN_SEC = 2.0
-WALK_REST_MAX_SEC = 6.0
-WALK_MARGIN_PX = 18
 
 HUNGER_DECAY = 0.020
 MOOD_DECAY   = 0.010

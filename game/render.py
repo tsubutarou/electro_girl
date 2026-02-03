@@ -28,9 +28,7 @@ def draw_frame(
     mouse_pos,
     gear=None,
     talk=None,
-    snack=None,
     wardrobe=None,
-    snack_icons: dict[str, pygame.Surface] | None = None,
     journal_open: bool = False,
     journal_scroll: int = 0,
 ):
@@ -48,9 +46,7 @@ def draw_frame(
     screen.blit(font_small.render(f"bg:{theme_name}", True, (170, 170, 190)), (cfg.LEFT_X, 70))
 
     # ---- character frame ----
-    # x-axis movement (offset from right panel center)
-    base_cx = cfg.RIGHT_X + cfg.RIGHT_PANEL_W // 2
-    cx = int(base_cx + float(getattr(g, "x_offset", 0.0)))
+    cx = cfg.RIGHT_X + cfg.RIGHT_PANEL_W // 2
     cy = 92
     frame_rect = pygame.Rect(cfg.RIGHT_X, cy - 44, cfg.RIGHT_PANEL_W, 88)
     pygame.draw.rect(screen, (45, 45, 58), frame_rect, 0, 10)
@@ -65,9 +61,9 @@ def draw_frame(
     body = sprites.get("body_idle") or sprites.get(g.state, sprites["idle"])
     screen.blit(body, body.get_rect(center=(cx, cy)))
 
-    # clothes overlay (optional)
-    outfit = getattr(g, "outfit", "normal")
-    clothes = sprites.get(f"clothes_{outfit}")
+    # clothes overlay
+    oid = getattr(g, "outfit", "normal")
+    clothes = sprites.get(f"clothes_{oid}") or sprites.get("clothes_normal")
     if clothes:
         screen.blit(clothes, clothes.get_rect(center=(cx, cy)))
 
@@ -120,28 +116,37 @@ def draw_frame(
             else:
                 b.draw(screen, font_small, b.hit(mouse_pos))
 
-    # ---- snack panel bg ----
-    if snack is not None and getattr(snack, "open", False):
-        pygame.draw.rect(screen, (35, 35, 46), snack.panel, 0, 10)
-        pygame.draw.rect(screen, (120, 120, 140), snack.panel, 2, 10)
-
-        # items
-        icons = snack_icons or {}
-        for b, sid in zip(getattr(snack, "snack_buttons", []), getattr(snack, "snack_ids", [])):
-            b.draw(screen, font_small, b.hit(mouse_pos))
-            ic = icons.get(sid)
-            if ic:
-                # icon at left inside button
-                r = b.rect
-                screen.blit(ic, ic.get_rect(midleft=(r.left + 10, r.centery)))
-
         # paging + close
-        if hasattr(snack, "prev_btn"):
-            snack.prev_btn.draw(screen, font_small, snack.prev_btn.hit(mouse_pos))
-        if hasattr(snack, "next_btn"):
-            snack.next_btn.draw(screen, font_small, snack.next_btn.hit(mouse_pos))
-        if hasattr(snack, "close_btn"):
-            snack.close_btn.draw(screen, font_small, snack.close_btn.hit(mouse_pos))
+        if hasattr(talk, "prev_btn"):
+            talk.prev_btn.draw(screen, font_small, talk.prev_btn.hit(mouse_pos))
+        if hasattr(talk, "next_btn"):
+            talk.next_btn.draw(screen, font_small, talk.next_btn.hit(mouse_pos))
+        if hasattr(talk, "close_btn"):
+            talk.close_btn.draw(screen, font_small, talk.close_btn.hit(mouse_pos))
+
+        # YES/NO
+        if getattr(g, "awaiting_choice", False):
+            talk.btn_yes.draw(screen, font_small, talk.btn_yes.hit(mouse_pos))
+            talk.btn_no.draw(screen, font_small, talk.btn_no.hit(mouse_pos))
+
+    # ---- wardrobe panel bg ----
+    if wardrobe is not None and getattr(wardrobe, "open", False):
+        pygame.draw.rect(screen, (35, 35, 46), wardrobe.panel, 0, 12)
+        pygame.draw.rect(screen, (120, 120, 140), wardrobe.panel, 2, 12)
+
+        # buttons
+        wardrobe.close_btn.draw(screen, font_small, wardrobe.close_btn.hit(mouse_pos))
+        wardrobe.prev_btn.draw(screen, font_small, wardrobe.prev_btn.hit(mouse_pos))
+        wardrobe.next_btn.draw(screen, font_small, wardrobe.next_btn.hit(mouse_pos))
+
+        # thumbs
+        for it in getattr(wardrobe, "items", []):
+            it.draw(
+                screen,
+                font_small,
+                hover=it.hit(mouse_pos),
+                selected=(getattr(g, "outfit", "normal") == getattr(it, "value", "")),
+            )
 
     # ---- journal ----
     if journal_open:
@@ -162,31 +167,56 @@ def draw_frame(
             screen.blit(surf, (panel.x + 10, y))
             y += 14
 
-
-    # ---- wardrobe panel bg ----
-    if wardrobe is not None and getattr(wardrobe, "open", False):
-        pygame.draw.rect(screen, (35, 35, 46), wardrobe.panel, 0, 10)
-        pygame.draw.rect(screen, (120, 120, 140), wardrobe.panel, 2, 10)
-
-        # controls
-        if hasattr(wardrobe, "prev_btn") and getattr(wardrobe, "_max_pages", 1) > 1:
-            wardrobe.prev_btn.draw(screen, font_small, wardrobe.prev_btn.hit(mouse_pos))
-        if hasattr(wardrobe, "next_btn") and getattr(wardrobe, "_max_pages", 1) > 1:
-            wardrobe.next_btn.draw(screen, font_small, wardrobe.next_btn.hit(mouse_pos))
-        if hasattr(wardrobe, "close_btn"):
-            wardrobe.close_btn.draw(screen, font_small, wardrobe.close_btn.hit(mouse_pos))
-
-        # thumbnails
-        for it in getattr(wardrobe, "items", []):
-            hover = it.hit(mouse_pos)
-            selected = (getattr(g, "outfit", "normal") == getattr(it, "outfit_id", ""))
-            it.draw(screen, font_small, hover=hover, selected=selected)
-
     # ---- speech bubble（会話は常に見える場所）----
     bubble = pygame.Rect(cfg.LEFT_X, cfg.H - 44 - 36, (cfg.W - cfg.RIGHT_PANEL_W - 16) - cfg.LEFT_X, 28)
     pygame.draw.rect(screen, (35, 35, 46), bubble, 0, 8)
     pygame.draw.rect(screen, (90, 90, 110), bubble, 2, 8)
     screen.blit(font_small.render(g.line, True, (235, 235, 245)), (bubble.x + 8, bubble.y + 6))
+
+
+    # ---- UI panels (gear / talk / wardrobe) ----
+    mx, my = mouse_pos
+
+    # gear menu panel background (buttons are in btns list)
+    if gear is not None and getattr(gear, "open", False):
+        pygame.draw.rect(screen, (40, 40, 52), gear.panel, 0, 10)
+        pygame.draw.rect(screen, (120, 120, 145), gear.panel, 2, 10)
+
+    # talk menu panel
+    if talk is not None and getattr(talk, "open", False):
+        pygame.draw.rect(screen, (40, 40, 52), talk.panel, 0, 10)
+        pygame.draw.rect(screen, (120, 120, 145), talk.panel, 2, 10)
+
+        # close / paging
+        talk.close_btn.draw(screen, font_small, talk.close_btn.hit((mx, my)))
+        talk.prev_btn.draw(screen, font_small, talk.prev_btn.hit((mx, my)))
+        talk.next_btn.draw(screen, font_small, talk.next_btn.hit((mx, my)))
+
+        # tabs
+        for tab in getattr(talk, "tabs", []):
+            tab.draw(screen, font_small, tab.hit((mx, my)))
+
+        # topic buttons
+        for b in getattr(talk, "topic_buttons", []):
+            b.draw(screen, font_small, b.hit((mx, my)))
+
+        # YES/NO if awaiting
+        if getattr(g, "awaiting_choice", False):
+            talk.btn_yes.draw(screen, font_small, talk.btn_yes.hit((mx, my)))
+            talk.btn_no.draw(screen, font_small, talk.btn_no.hit((mx, my)))
+
+    # wardrobe menu panel
+    if wardrobe is not None and getattr(wardrobe, "open", False):
+        pygame.draw.rect(screen, (40, 40, 52), wardrobe.panel, 0, 10)
+        pygame.draw.rect(screen, (120, 120, 145), wardrobe.panel, 2, 10)
+
+        wardrobe.close_btn.draw(screen, font_small, wardrobe.close_btn.hit((mx, my)))
+        wardrobe.prev_btn.draw(screen, font_small, wardrobe.prev_btn.hit((mx, my)))
+        wardrobe.next_btn.draw(screen, font_small, wardrobe.next_btn.hit((mx, my)))
+
+        sel = getattr(g, "outfit", "normal")
+        for it in getattr(wardrobe, "items", []):
+            it.draw(screen, font_small, it.hit((mx, my)), selected=(it.value == sel))
 
     # ---- base buttons ----
     mx, my = mouse_pos

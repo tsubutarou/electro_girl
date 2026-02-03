@@ -397,29 +397,21 @@ def main():
         dt = clock.tick(cfg.FPS) / 1000.0
         now = time.time()
 
-        # ---- 瞬き（放置でも動く）----
-        if now >= g.next_blink and g.blink_until <= now:
-            g.blink_until = now + 0.12
-            g.next_blink = now + random.uniform(3.0, 6.0)
-
-        # ---- 口パク（セリフ表示中だけ）----
-        if now < g.line_until:
-            if now >= g.mouth_until:
-                g.mouth_open = not g.mouth_open
-                g.mouth_until = now + 0.18
-        else:
-            g.mouth_open = False
-
         dlg.load_if_needed()
         topics.load_if_needed()
-        gear.update_labels(g)
 
         refresh_unlocks()
 
         cats, entries = build_category_view()
-        talk.relayout(cats, entries)
 
-        for e in pygame.event.get():
+        # outfits list for wardrobe (from loaded sprites)
+        outfits = sorted({k[len("clothes_"):] for k in sprites.keys() if k.startswith("clothes_")})
+        if not outfits:
+            outfits = ["normal"]
+
+        events = pygame.event.get()
+
+        for e in events:
 
             # Ctrl + Left Drag: move the window (useful for NOFRAME).
             if (
@@ -562,6 +554,8 @@ def main():
                         continue
                     if gear.item_outfit.hit(pos):
                         wardrobe.toggle()
+                        if wardrobe.open:
+                            wardrobe.relayout(outfits, sprites)
                         play_sfx("talk")
                         continue
 
@@ -577,9 +571,11 @@ def main():
                         continue
                     if wardrobe.prev_btn.hit(pos):
                         wardrobe.page = (wardrobe.page - 1) % max(1, wardrobe._max_pages)
+                        wardrobe.relayout(outfits, sprites)
                         continue
                     if wardrobe.next_btn.hit(pos):
                         wardrobe.page = (wardrobe.page + 1) % max(1, wardrobe._max_pages)
+                        wardrobe.relayout(outfits, sprites)
                         continue
 
                     # pick outfit
@@ -595,6 +591,8 @@ def main():
 
                 if talk.btn_talk.hit(pos):
                     talk.toggle()
+                    if talk.open:
+                        talk.relayout(cats, entries)
                     continue
 
                 if talk.open:
@@ -606,14 +604,17 @@ def main():
                     for i, tab in enumerate(talk.tabs):
                         if tab.hit(pos) and i < len(cats):
                             talk.set_category(cats[i][0])
+                            talk.relayout(cats, entries)
                             break
 
                     # paging
                     if talk.prev_btn.hit(pos):
                         talk.page_prev()
+                        talk.relayout(cats, entries)
                         continue
                     if talk.next_btn.hit(pos):
                         talk.page_next()
+                        talk.relayout(cats, entries)
                         continue
 
                     # YES/NO
@@ -702,6 +703,30 @@ def main():
         step_sim(g, now, dt)
         if now >= g.state_until:
             pick_idle_state(g, dlg, now)
+
+        # ---- blink / mouth (dialogue animation) ----
+
+
+        # ---- 瞬き（放置でも動く）----
+        if now >= g.next_blink and g.blink_until <= now:
+            g.blink_until = now + 0.12
+            g.next_blink = now + random.uniform(3.0, 6.0)
+
+        # ---- 口パク（セリフ表示中だけ）----
+        if now < g.line_until:
+            if now >= g.mouth_until:
+                g.mouth_open = not g.mouth_open
+                g.mouth_until = now + 0.18
+        else:
+            g.mouth_open = False
+
+        # ---- UI layout (open menus are updated every frame) ----
+        gear.update_labels(g)
+        gear.relayout()
+        if talk.open:
+            talk.relayout(cats, entries)
+        if wardrobe.open:
+            wardrobe.relayout(outfits, sprites)
         
         # セリフが終わったら通常表情に戻す
         if now >= g.line_until:

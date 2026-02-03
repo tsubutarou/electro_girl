@@ -59,19 +59,8 @@ class Girl:
     
     expression: str = "normal"
 
-    # outfit / clothes layer id
+    # clothes
     outfit: str = "normal"
-
-    # snacks
-    last_snack_id: str = ""
-    last_snack_at: float = 0.0
-    snack_count: int = 0
-
-    # movement (x-axis wander inside right panel)
-    x_offset: float = 0.0          # px offset from panel center
-    vx_px_per_sec: float = 0.0     # velocity in px/sec
-    walk_until: float = 0.0        # if now < walk_until, keep walking
-    next_walk_at: float = 0.0      # earliest time to start walking again
 
 
 def load_or_new() -> Girl:
