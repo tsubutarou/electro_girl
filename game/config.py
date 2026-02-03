@@ -53,3 +53,11 @@ SFX_BASE_VOLUME = {
     "on":    0.35,
     "talk":  0.30,
 }
+
+# X movement (right panel wandering)
+WALK_SPEED_PX_PER_SEC = 22.0
+WALK_MIN_SEC = 1.6
+WALK_MAX_SEC = 3.4
+WALK_REST_MIN_SEC = 2.0
+WALK_REST_MAX_SEC = 5.5
+WALK_MARGIN_PX = 10  # keep within right panel

@@ -48,7 +48,7 @@ def draw_frame(
     screen.blit(font_small.render(f"bg:{theme_name}", True, (170, 170, 190)), (cfg.LEFT_X, 70))
 
     # ---- character frame ----
-    cx = cfg.RIGHT_X + cfg.RIGHT_PANEL_W // 2
+    cx = cfg.RIGHT_X + cfg.RIGHT_PANEL_W // 2 + int(getattr(g, 'x_offset', 0.0))
     cy = 92
     frame_rect = pygame.Rect(cfg.RIGHT_X, cy - 44, cfg.RIGHT_PANEL_W, 88)
     pygame.draw.rect(screen, (45, 45, 58), frame_rect, 0, 10)

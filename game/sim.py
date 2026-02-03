@@ -35,6 +35,57 @@ def step_sim(g: Girl, now: float, dt: float):
     elif g.state == "grumpy":
         g.mood = clamp(g.mood - 0.02 * dt)
 
+    # movement
+    step_move(g, now, dt)
+
+
+def step_move(g: Girl, now: float, dt: float):
+    """Wander left/right inside the right panel.
+
+    Uses g.x_offset as an offset from the panel center in pixels.
+    """
+    # Stop moving while sleeping / lights off (keep her calm)
+    if getattr(g, "lights_off", False) or getattr(g, "state", "") == "sleep":
+        g.vx_px_per_sec = 0.0
+        # schedule a walk later to avoid immediate start upon wake
+        if getattr(g, "next_walk_at", 0.0) < now:
+            g.next_walk_at = now + random.uniform(cfg.WALK_REST_MIN_SEC, cfg.WALK_REST_MAX_SEC)
+        return
+
+    # ensure fields exist (older saves)
+    if not hasattr(g, "x_offset"):
+        g.x_offset = 0.0
+    if not hasattr(g, "vx_px_per_sec"):
+        g.vx_px_per_sec = 0.0
+    if not hasattr(g, "walk_until"):
+        g.walk_until = 0.0
+    if not hasattr(g, "next_walk_at"):
+        g.next_walk_at = now + random.uniform(cfg.WALK_REST_MIN_SEC, cfg.WALK_REST_MAX_SEC)
+
+    # walking phase
+    if now < g.walk_until and g.vx_px_per_sec != 0.0:
+        g.x_offset += g.vx_px_per_sec * dt
+
+        bound = max(0, (cfg.RIGHT_PANEL_W // 2) - int(cfg.WALK_MARGIN_PX))
+        if g.x_offset < -bound:
+            g.x_offset = -bound
+            g.vx_px_per_sec = abs(g.vx_px_per_sec)
+        elif g.x_offset > bound:
+            g.x_offset = bound
+            g.vx_px_per_sec = -abs(g.vx_px_per_sec)
+
+        # finish walk
+        if now >= g.walk_until:
+            g.vx_px_per_sec = 0.0
+            g.next_walk_at = now + random.uniform(cfg.WALK_REST_MIN_SEC, cfg.WALK_REST_MAX_SEC)
+        return
+
+    # rest phase: decide whether to start a walk
+    if now >= g.next_walk_at:
+        direction = -1.0 if random.random() < 0.5 else 1.0
+        g.vx_px_per_sec = direction * float(cfg.WALK_SPEED_PX_PER_SEC)
+        g.walk_until = now + random.uniform(cfg.WALK_MIN_SEC, cfg.WALK_MAX_SEC)
+
 
 def action_snack(g: Girl, snack: Snack | None = None):
     """Apply snack effects. If snack is None, use legacy defaults."""

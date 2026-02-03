@@ -68,6 +68,13 @@ class Girl:
     snack_count: int = 0
 
 
+    # X movement (right panel wandering)
+    x_offset: float = 0.0
+    vx_px_per_sec: float = 0.0
+    walk_until: float = 0.0
+    next_walk_at: float = 0.0
+
+
 def load_or_new() -> Girl:
     if os.path.exists(cfg.SAVE_PATH):
         try:
