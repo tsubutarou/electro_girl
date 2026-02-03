@@ -62,6 +62,11 @@ class Girl:
     # clothes
     outfit: str = "normal"
 
+    # snacks
+    last_snack_id: str = ""
+    last_snack_at: float = 0.0
+    snack_count: int = 0
+
 
 def load_or_new() -> Girl:
     if os.path.exists(cfg.SAVE_PATH):

@@ -19,8 +19,9 @@ from game.sim import (
     action_pet,
     action_toggle_lights,
 )
-from game.ui import make_buttons, cycle_bg, clamp01, Button, WardrobeMenu
+from game.ui import make_buttons, cycle_bg, clamp01, Button
 from game.render import draw_frame
+from game.snacks import Snacks
 from game.topics import Topics, unlock_ok, describe_unlock
 from game.journal import add_log
 
@@ -197,6 +198,8 @@ def main():
     sounds = load_sounds(mixer_ok)
 
     dlg = Dialogue(cfg.DLG_PATH)
+    snacks = Snacks()
+    snacks.load_if_needed(force=True, icon_scale=cfg.SNACK_ICON_SCALE)
     topics = Topics(cfg.TOPICS_PATH)
 
     g = load_or_new()
@@ -212,8 +215,7 @@ def main():
     pick_idle_state(g, dlg, now)
     greet_on_start(g, dlg, now)
 
-    btn_snack, btn_pet, btn_light, gear, talk = make_buttons()
-    wardrobe = WardrobeMenu()
+    btn_snack, btn_pet, btn_light, gear, talk, wardrobe, snack_menu = make_buttons()
 
     # 右クリックメニュー（簡易）
     ctx_open = False
@@ -264,7 +266,7 @@ def main():
             btns = [btn_snack, btn_pet, btn_light, talk.btn_talk, *gear.all_buttons_for_draw()]
             draw_frame(
                 screen, font, font_small, sprites, g, btns, pygame.mouse.get_pos(),
-                gear=gear, talk=talk, wardrobe=wardrobe, journal_open=journal_open, journal_scroll=journal_scroll,
+                gear=gear, talk=talk, wardrobe=wardrobe, snack_menu=snack_menu, journal_open=journal_open, journal_scroll=journal_scroll,
                 debug_lines=None
             )
             # context menu is ignored during exit animation
@@ -510,6 +512,8 @@ def main():
                     talk.close()
                 if wardrobe.open and (not wardrobe.hit_any(pos)):
                     wardrobe.close()
+                if snack_menu.open and (not snack_menu.hit_any(pos)) and (not btn_snack.hit(pos)):
+                    snack_menu.close()
 
                 if gear.btn_gear.hit(pos):
                     gear.toggle()
@@ -590,7 +594,38 @@ def main():
                             save(g)
                             wardrobe.close()
                             break
+
+                if snack_menu.open:
+                    if snack_menu.close_btn.hit(pos):
+                        snack_menu.close()
+                        continue
+                    if snack_menu.prev_btn.hit(pos):
+                        snack_menu.page = (snack_menu.page - 1) % max(1, snack_menu._max_pages)
+                        snack_menu.relayout([s.id for s in snacks.items], snacks.icons)
+                        continue
+                    if snack_menu.next_btn.hit(pos):
+                        snack_menu.page = (snack_menu.page + 1) % max(1, snack_menu._max_pages)
+                        snack_menu.relayout([s.id for s in snacks.items], snacks.icons)
+                        continue
+
+                    # pick snack
+                    for it in snack_menu.items:
+                        if it.hit(pos):
+                            sn = snacks.get(it.value)
+                            if sn:
+                                action_snack(g, sn)
+                                g.last_snack_id = sn.id
+                                g.last_snack_at = now
+                                g.snack_count = getattr(g, "snack_count", 0) + 1
+                                tag = getattr(sn, "react_tag", "react_snack") or "react_snack"
+                                line = dlg.pick(tag) or dlg.pick("react_snack") or "おやつ！"
+                                set_line(g, now, line, (1.4, 3.0))
+                                play_sfx("talk")
+                                save(g)
+                            snack_menu.close()
+                            break
                     continue
+
 
                 if talk.btn_talk.hit(pos):
                     talk.toggle()
@@ -663,9 +698,10 @@ def main():
                 # 行動ボタン
                 if btn_snack.hit(pos):
                     play_sfx("snack")
-                    action_snack(g)
-                    set_line(g, now, dlg.pick("react_snack") or "おやつ！", (1.5, 3.0))
-                    play_sfx("talk")
+                    snack_menu.toggle()
+                    snacks.load_if_needed()
+                    snack_menu.relayout([s.id for s in snacks.items], snacks.icons)
+                    continue
                 elif btn_pet.hit(pos):
                     play_sfx("pet")
                     action_pet(g)
@@ -735,6 +771,9 @@ def main():
             talk.relayout(cats, entries)
         if wardrobe.open:
             wardrobe.relayout(outfits, sprites)
+        if snack_menu.open:
+            snacks.load_if_needed()
+            snack_menu.relayout([s.id for s in snacks.items], snacks.icons)
         
         # セリフが終わったら通常表情に戻す
         if now >= g.line_until:
@@ -767,12 +806,13 @@ def main():
                 f"outfit:{getattr(g,'outfit','')}  bg:{getattr(g,'bg_index',0)}",
                 f"talk_open:{getattr(talk,'open',False)} page:{getattr(talk,'page',0)} cat:{getattr(talk,'active_cat','')}",
                 f"gear_open:{getattr(gear,'open',False)}  wardrobe_open:{getattr(wardrobe,'open',False)} page:{getattr(wardrobe,'page',0)}",
+                f"snack_open:{getattr(snack_menu,'open',False)} page:{getattr(snack_menu,'page',0)} items:{len(getattr(snack_menu,'items',[]))}",
                 f"x_off:{getattr(g,'x_offset',0):.1f} vx:{getattr(g,'vx_px_per_sec',0):.1f}" if hasattr(g,'x_offset') or hasattr(g,'vx_px_per_sec') else None,
             ]
 
         draw_frame(
             screen, font, font_small, sprites, g, btns, pygame.mouse.get_pos(),
-            gear=gear, talk=talk, wardrobe=wardrobe, journal_open=journal_open, journal_scroll=journal_scroll,
+            gear=gear, talk=talk, wardrobe=wardrobe, snack_menu=snack_menu, journal_open=journal_open, journal_scroll=journal_scroll,
             debug_lines=debug_lines
         )
 

@@ -3,6 +3,7 @@ import random
 import time
 
 from .model import Girl, clamp
+from .snacks import Snack
 from .dialogue import Dialogue, set_line
 from . import config as cfg
 
@@ -35,10 +36,18 @@ def step_sim(g: Girl, now: float, dt: float):
         g.mood = clamp(g.mood - 0.02 * dt)
 
 
-def action_snack(g: Girl):
-    g.hunger = clamp(g.hunger + cfg.SNACK_HUNGER_RECOVER)
-    g.mood = clamp(g.mood + 3)
-    g.affection += 1
+def action_snack(g: Girl, snack: Snack | None = None):
+    """Apply snack effects. If snack is None, use legacy defaults."""
+    if snack is None:
+        g.hunger = clamp(g.hunger + cfg.SNACK_HUNGER_RECOVER)
+        g.mood = clamp(g.mood + 3)
+        g.affection += 1
+        return
+
+    g.hunger = clamp(g.hunger + float(getattr(snack, 'hunger', 0.0)))
+    g.mood = clamp(g.mood + float(getattr(snack, 'mood', 0.0)))
+    g.affection += int(getattr(snack, 'affection', 0))
+
 
 
 def action_pet(g: Girl):

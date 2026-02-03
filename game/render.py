@@ -29,6 +29,7 @@ def draw_frame(
     gear=None,
     talk=None,
     wardrobe=None,
+    snack_menu=None,
     journal_open: bool = False,
     journal_scroll: int = 0,
     debug_lines=None,
@@ -148,6 +149,18 @@ def draw_frame(
                 hover=it.hit(mouse_pos),
                 selected=(getattr(g, "outfit", "normal") == getattr(it, "value", "")),
             )
+
+    # ---- snack panel bg ----
+    if snack_menu is not None and getattr(snack_menu, "open", False):
+        pygame.draw.rect(screen, (35, 35, 46), snack_menu.panel, 0, 12)
+        pygame.draw.rect(screen, (120, 120, 140), snack_menu.panel, 2, 12)
+
+        snack_menu.close_btn.draw(screen, font_small, snack_menu.close_btn.hit(mouse_pos))
+        snack_menu.prev_btn.draw(screen, font_small, snack_menu.prev_btn.hit(mouse_pos))
+        snack_menu.next_btn.draw(screen, font_small, snack_menu.next_btn.hit(mouse_pos))
+
+        for it in getattr(snack_menu, "items", []):
+            it.draw(screen, font_small, hover=it.hit(mouse_pos), selected=False)
 
     # ---- journal ----
     if journal_open:

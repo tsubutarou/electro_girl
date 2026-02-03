@@ -12,6 +12,16 @@ SFX_DIR = os.path.join(ASSETS, "sfx")
 DLG_PATH = os.path.join(ASSETS, "dialogue", "lines.json")
 TOPICS_PATH = os.path.join(ASSETS, "dialogue", "topics.json")
 
+# Snacks
+SNACKS_DIR = os.path.join(ASSETS, "snacks")
+SNACKS_PATH = os.path.join(SNACKS_DIR, "snacks.json")
+SNACKS_ICON_DIR = os.path.join(SNACKS_DIR, "icons")
+
+# Snack UI
+SNACK_MENU_COLS = 4
+SNACK_MENU_ROWS = 1
+SNACK_ICON_SCALE = 1  # icons are already small; bump if needed
+
 LEFT_X = 12
 RIGHT_PANEL_W = 128
 RIGHT_X = W - RIGHT_PANEL_W - 20
