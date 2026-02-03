@@ -34,6 +34,7 @@ class Girl:
 
     borderless: bool = False
     dock_bottom_right: bool = True
+    always_on_top: bool = False
 
     unlocked_topics: list[str] = field(default_factory=list)
     flags: dict[str, bool] = field(default_factory=dict)

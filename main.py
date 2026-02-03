@@ -133,6 +133,37 @@ def _set_window_pos_screen(x: int, y: int) -> bool:
         return False
 
 
+
+
+def _set_window_topmost(enabled: bool) -> bool:
+    """Windows: set the pygame window to be always-on-top or not."""
+    if sys.platform != "win32":
+        return False
+    try:
+        info = pygame.display.get_wm_info()
+        hwnd = info.get("window")
+        if not hwnd:
+            return False
+        user32 = ctypes.windll.user32
+        try:
+            user32.SetWindowPos.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_int, ctypes.c_uint]
+            user32.SetWindowPos.restype = ctypes.c_bool
+        except Exception:
+            pass
+
+        SWP_NOMOVE = 0x0002
+        SWP_NOSIZE = 0x0001
+        SWP_SHOWWINDOW = 0x0040
+
+        HWND_TOPMOST = -1
+        HWND_NOTOPMOST = -2
+
+        user32.SetWindowPos(hwnd, HWND_TOPMOST if enabled else HWND_NOTOPMOST,
+                            0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW)
+        return True
+    except Exception:
+        return False
+
 def _get_window_rect():
     """Windows: get outer window rect (left, top, right, bottom) or None."""
     if sys.platform != "win32":
@@ -199,10 +230,14 @@ def main():
 
     dlg = Dialogue(cfg.DLG_PATH)
     snacks = Snacks()
+    # Apply always-on-top setting on startup (Windows only)
+
     snacks.load_if_needed(force=True, icon_scale=cfg.SNACK_ICON_SCALE)
     topics = Topics(cfg.TOPICS_PATH)
 
     g = load_or_new()
+    
+    _set_window_topmost(bool(getattr(g, 'always_on_top', False)))
     # 表情の初期値
     g.expression = getattr(g, "expression", "normal")
     g.dock_bottom_right = getattr(g, "dock_bottom_right", True)
@@ -544,6 +579,19 @@ def main():
                         play_sfx("talk")
                         save(g)
                         continue
+
+                    if gear.item_top.hit(pos):
+                        g.always_on_top = not getattr(g, "always_on_top", False)
+                        ok = _set_window_topmost(bool(g.always_on_top))
+                        msg = "最前面にする。" if g.always_on_top else "最前面、解除。"
+                        if not ok and sys.platform == "win32":
+                            msg = msg + "（反映できないかも）"
+                        set_line(g, now, msg, (1.0, 2.0))
+                        play_sfx("talk")
+                        save(g)
+                        gear.update_labels(g)
+                        continue
+
                     if gear.item_mute.hit(pos):
                         g.sfx_muted = not g.sfx_muted
                         set_line(g, now, "無音モード。" if g.sfx_muted else "音、戻した。", (1.0, 2.0))

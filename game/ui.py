@@ -211,45 +211,63 @@ class GearMenu:
         self.item_bg = Button((0, 0, 0, 0), "BG ▶")
         self.item_frame = Button((0, 0, 0, 0), "FRAME:ON")
         self.item_dock = Button((0, 0, 0, 0), "DOCK:ON")
+        self.item_top = Button((0, 0, 0, 0), "TOP:OFF")
         self.item_mute = Button((0, 0, 0, 0), "SFX:ON")
         self.item_up = Button((0, 0, 0, 0), "VOL +")
         self.item_down = Button((0, 0, 0, 0), "VOL -")
         self.item_log = Button((0, 0, 0, 0), "LOG")
         self.item_outfit = Button((0, 0, 0, 0), "OUT:normal")
 
-        self.items = [self.item_bg, self.item_frame, self.item_dock, self.item_mute, self.item_up, self.item_down, self.item_outfit, self.item_log]
+        self.items = [self.item_bg, self.item_frame, self.item_dock, self.item_top, self.item_mute, self.item_up, self.item_down, self.item_outfit, self.item_log]
         self.panel = pygame.Rect(0, 0, 0, 0)
         self.relayout()
 
     def relayout(self):
+
         w, h = 96, 22
-        x = cfg.W - w - 8
+        cols = 2
+        gap_x = 6
+        gap_y = 6
+
         y0 = self.btn_gear.rect.bottom + 6
+
+        # compute rows and panel size
+        n = len(self.items)
+        rows = max(1, (n + cols - 1) // cols)
+        panel_w = cols * w + (cols - 1) * gap_x + 12
+        panel_h = rows * h + (rows - 1) * gap_y + 12
+
+        x0 = cfg.W - panel_w - 8
+        x = x0 + 6
+        y = y0 + 6
+
         for i, b in enumerate(self.items):
-            b.rect = pygame.Rect(x, y0 + i * (h + 6), w, h)
+            col = i % cols
+            row = i // cols
+            bx = x + col * (w + gap_x)
+            by = y + row * (h + gap_y)
+            b.rect = pygame.Rect(bx, by, w, h)
 
-        if self.items:
-            top = self.items[0].rect.top - 6
-            bottom = self.items[-1].rect.bottom + 6
-            self.panel = pygame.Rect(x - 6, top, w + 12, bottom - top)
+        self.panel = pygame.Rect(x0, y0, panel_w, panel_h)
 
-            # If menu goes off-screen (small window height), shift it upward.
-            overflow = self.panel.bottom - (cfg.H - 8)
-            if overflow > 0:
-                for b in self.items:
-                    b.rect.y -= overflow
-                self.panel.y -= overflow
+        # keep inside the window: if off-screen bottom, shift up
+        overflow = self.panel.bottom - (cfg.H - 8)
+        if overflow > 0:
+            for b in self.items:
+                b.rect.y -= overflow
+            self.panel.y -= overflow
 
-            # Keep a small top margin too
-            underflow = 8 - self.panel.top
-            if underflow > 0:
-                for b in self.items:
-                    b.rect.y += underflow
-                self.panel.y += underflow
+        # keep a small top margin too
+        underflow = 8 - self.panel.top
+        if underflow > 0:
+            for b in self.items:
+                b.rect.y += underflow
+            self.panel.y += underflow
 
     def update_labels(self, g: Girl):
         self.item_frame.label = "FRAME:OFF" if getattr(g, "borderless", False) else "FRAME:ON"
         self.item_dock.label = "DOCK:ON" if getattr(g, "dock_bottom_right", True) else "DOCK:OFF"
+        self.item_top.label = "TOP:ON" if getattr(g, "always_on_top", False) else "TOP:OFF"
         self.item_mute.label = "SFX:OFF" if g.sfx_muted else "SFX:ON"
         self.item_outfit.label = f"OUT:{getattr(g, 'outfit', 'normal')}"
         vol = int(round(clamp01(g.sfx_scale) * 100))
