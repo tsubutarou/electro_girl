@@ -1,0 +1,131 @@
+{
+  "categories": [
+    {
+      "id": "girls",
+      "label": "ガールズトーク"
+    },
+    {
+      "id": "art",
+      "label": "制作"
+    },
+    {
+      "id": "night",
+      "label": "夜ふかし"
+    },
+    {
+      "id": "food",
+      "label": "食べ物"
+    }
+  ],
+  "topics": [
+    {
+      "id": "t_intro",
+      "title": "自己紹介",
+      "category": "girls",
+      "unlock": {
+        "type": "always"
+      },
+      "sequence": [
+        {
+          "say": "わたしのこと、少しずつ知ってほしい。"
+        },
+        {
+          "say": "名前はまだ秘密。…そのうち教える。"
+        },
+        {
+          "ask": "つぶ、今日は元気？",
+          "yes": "よかった。じゃあ一緒にだらだらしよ。",
+          "no": "そっか…無理しないで。となりにいる。",
+          "set_flag": "asked_genki"
+        }
+      ],
+      "tags": [
+        "talk"
+      ]
+    },
+    {
+      "id": "t_snack",
+      "title": "おやつ談義",
+      "category": "food",
+      "unlock": {
+        "type": "affection_gte",
+        "value": 5
+      },
+      "sequence": [
+        {
+          "say": "おやつってさ、人生のバフだと思う。"
+        },
+        {
+          "ask": "甘いのとしょっぱいの、どっち派？",
+          "yes": "甘党！わたしも。砂糖は正義。",
+          "no": "しょっぱい派か〜。ポテチの民だ。",
+          "set_flag": "asked_snack"
+        }
+      ],
+      "tags": [
+        "talk"
+      ]
+    },
+    {
+      "id": "t_night",
+      "title": "夜ふかし",
+      "category": "night",
+      "unlock": {
+        "type": "time_range",
+        "from": "18:00",
+        "to": "02:00"
+      },
+      "sequence": [
+        {
+          "say": "夜って、なんか思考が変な方向に伸びるよね。"
+        },
+        {
+          "say": "…でも嫌いじゃない。"
+        }
+      ],
+      "tags": [
+        "talk"
+      ]
+    },
+    {
+      "id": "t_drawing",
+      "title": "絵ってさ",
+      "category": "art",
+      "unlock": {
+        "type": "days_since_first_gte",
+        "value": 1
+      },
+      "sequence": [
+        {
+          "say": "制作って、楽しいのに、たまに苦しい。"
+        },
+        {
+          "ask": "今日は描けそう？",
+          "yes": "いいね。最初の一筆、見守る。",
+          "no": "休んで。回復も制作のうち。",
+          "set_flag": "asked_draw_today"
+        }
+      ],
+      "tags": [
+        "talk"
+      ]
+    },
+    {
+      "id": "auto_morning",
+      "title": "朝のひとこと",
+      "category": "girls",
+      "tags": ["auto"],
+      "once_per_day": true,
+      "unlock": {
+        "type": "time_range",
+        "from": "06:00",
+        "to": "09:59"
+      },
+      "sequence": [
+        { "say": "おはよ。今日も起きたね。" },
+        { "say": "眠そうだけど、無理しなくていいよ。" }
+      ]
+    }
+
+  ]
+}

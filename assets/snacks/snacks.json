@@ -1,0 +1,32 @@
+{
+  "meta": {"version": 1, "notes": "おやつデータ。idは英数字推奨。iconは assets/snacks/icons/ を参照"},
+  "snacks": [
+    {
+      "id": "cookie",
+      "name": "クッキー",
+      "icon": "cookie.png",
+      "hunger": 18,
+      "mood": 4,
+      "affection": 1,
+      "react_tag": "react_snack_cookie"
+    },
+    {
+      "id": "choco",
+      "name": "チョコ",
+      "icon": "choco.png",
+      "hunger": 14,
+      "mood": 6,
+      "affection": 1,
+      "react_tag": "react_snack_choco"
+    },
+    {
+      "id": "candy",
+      "name": "キャンディ",
+      "icon": "candy.png",
+      "hunger": 10,
+      "mood": 5,
+      "affection": 1,
+      "react_tag": "react_snack_candy"
+    }
+  ]
+}

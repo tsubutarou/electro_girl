@@ -1,0 +1,295 @@
+{
+  "hunger": 99.93582000000042,
+  "mood": 99.96791000000084,
+  "sleepiness": 13.350240000018605,
+  "affection": 158,
+  "lights_off": false,
+  "state": "idle",
+  "state_until": 1770137162.0432887,
+  "line": "またね。続きはまた今度！",
+  "line_until": 1770137157.754177,
+  "last_seen": 1770137155.754177,
+  "first_seen": 1770058101.8799431,
+  "bg_index": 5,
+  "sfx_muted": false,
+  "sfx_scale": 1.0,
+  "borderless": false,
+  "dock_bottom_right": true,
+  "unlocked_topics": [
+    "t_intro",
+    "t_snack",
+    "t_night"
+  ],
+  "flags": {},
+  "journal": [
+    {
+      "t": 1770058105.9888444,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770058108.0088906,
+      "text": "おやつってさ、人生のバフだと思う。",
+      "topic_id": "t_snack",
+      "topic_title": "おやつ談義"
+    },
+    {
+      "t": 1770058110.6149187,
+      "text": "おやつってさ、人生のバフだと思う。",
+      "topic_id": "t_snack",
+      "topic_title": "おやつ談義"
+    },
+    {
+      "t": 1770058110.8314338,
+      "text": "おやつってさ、人生のバフだと思う。",
+      "topic_id": "t_snack",
+      "topic_title": "おやつ談義"
+    },
+    {
+      "t": 1770058110.998744,
+      "text": "おやつってさ、人生のバフだと思う。",
+      "topic_id": "t_snack",
+      "topic_title": "おやつ談義"
+    },
+    {
+      "t": 1770058192.1917353,
+      "text": "おやつってさ、人生のバフだと思う。",
+      "topic_id": "t_snack",
+      "topic_title": "おやつ談義"
+    },
+    {
+      "t": 1770058196.655672,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770058198.966725,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770058199.113918,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770058204.542807,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770058205.0774603,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770058205.2586875,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770058209.269823,
+      "text": "おやつってさ、人生のバフだと思う。",
+      "topic_id": "t_snack",
+      "topic_title": "おやつ談義"
+    },
+    {
+      "t": 1770058688.324543,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770058689.1149707,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770058689.7809973,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770058690.0109377,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770058692.2344697,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770058692.4171486,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770058696.145859,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770058696.3112745,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770058697.5768225,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770059588.1120577,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770059588.6424458,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770059589.3386695,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770059589.506075,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770059589.7879574,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770059592.524634,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770059592.8526034,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770079343.127912,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770079344.7044861,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770079348.3174481,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770079348.4689178,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770079348.6534896,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770079354.2770698,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770079744.244375,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770079758.221193,
+      "text": "おやつってさ、人生のバフだと思う。",
+      "topic_id": "t_snack",
+      "topic_title": "おやつ談義"
+    },
+    {
+      "t": 1770079760.2185707,
+      "text": "おやつってさ、人生のバフだと思う。",
+      "topic_id": "t_snack",
+      "topic_title": "おやつ談義"
+    },
+    {
+      "t": 1770079762.0312138,
+      "text": "おやつってさ、人生のバフだと思う。",
+      "topic_id": "t_snack",
+      "topic_title": "おやつ談義"
+    },
+    {
+      "t": 1770099681.8404021,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    },
+    {
+      "t": 1770099739.955584,
+      "text": "わたしのこと、少しずつ知ってほしい。",
+      "topic_id": "t_intro",
+      "topic_title": "自己紹介"
+    }
+  ],
+  "new_topics": [
+    "t_night"
+  ],
+  "active_topic": "t_intro",
+  "seq_index": 1,
+  "pending_yes": "",
+  "pending_no": "",
+  "pending_flag": "",
+  "awaiting_choice": false,
+  "last_auto_day": "",
+  "blink_until": 1770137153.739656,
+  "next_blink": 1770137156.8777153,
+  "mouth_open": false,
+  "mouth_until": 1770137155.8516545,
+  "expression": "normal",
+  "outfit": "alt",
+  "last_snack_id": "",
+  "last_snack_at": 0.0,
+  "snack_count": 0,
+  "x_offset": 32.463999999999956,
+  "vx_px_per_sec": 24.0,
+  "walk_until": 1770137156.6698935,
+  "next_walk_at": 1770137162.173295
+}

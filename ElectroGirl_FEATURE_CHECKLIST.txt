@@ -1,0 +1,96 @@
+Electro Girl 機能一覧・チェックリスト（Savepoint用）
+更新日: 2026-02-04
+目的:
+- 「いま何が動くべきか」を固定し、パッチ上書きで機能が消えた時に即気付けるようにする
+- どのファイルがその機能を担当しているかを明記して、修正ポイントを迷子にしない
+
+============================================================
+0) 起動・終了
+[ ] 起動が安定している（例外で落ちない）
+[ ] ESC で終了できる
+[ ] 右クリックメニュー EXIT → お別れセリフ → 終了
+担当: main.py / game/ui.py / game/dialogue.py
+
+============================================================
+1) 合成描画（キャラ表現）
+[ ] body + face_base(expression) + blink + mouth の順で合成
+[ ] 自動まばたき
+[ ] 口パク（文字列内容に連動 / 句読点や…で停止）
+[ ] sleep / 消灯中は常時閉じ目
+担当: game/render.py / game/assets.py / game/dialogue.py
+
+============================================================
+2) 会話システム（TALK）
+[ ] TALKメニューから話題選択
+[ ] JSON駆動（topics.json）: NEW / LOCKED / カテゴリ / ページング
+[ ] YES/NO 分岐
+[ ] 会話中は口パク＆表情連動
+[ ] 自発会話の頻度抑制 + 自然な沈黙
+担当: game/dialogue.py / game/topics.py / game/ui.py / assets/dialogue/*
+
+============================================================
+3) X軸移動（右パネル内うろうろ）
+[ ] 数秒〜十数秒で左右に歩く
+[ ] 壁で反転（右パネル内から出ない）
+[ ] sleep / 消灯中は移動しない
+担当: game/sim.py（step_move）/ game/model.py（位置状態）/ game/render.py（cxに反映）/ game/config.py（WALK_*）
+
+============================================================
+4) 常駐アプリ系
+[ ] 最前面（Always on Top）トグル（次回起動反映）
+[ ] 枠なし（NOFRAME）トグル（次回起動反映）
+[ ] 起動時 右下固定（DOCK）トグル
+[ ] Ctrl + 左ドラッグでウィンドウ移動（枠なしでも可）
+[ ] 移動したら DOCK 自動OFF
+[ ] 枠なしでも操作不能にならない脱出導線
+担当: main.py / game/ui.py / game/model.py（設定保存）/ WinAPI部
+
+============================================================
+5) 衣装（着せ替え）
+[ ] assets/sprite/clothes/*.png を自動検出（ファイル名＝衣装ID）
+[ ] 合成描画に clothes レイヤー（bodyの上）
+[ ] ⚙ メニューに OUT:xxx ボタンが表示される（画面内に収まる）
+[ ] OUT 押下でサムネ一覧パネルが開く
+[ ] サムネをクリックすると outfit が切り替わる
+[ ] outfit が保存/復帰する
+担当: game/assets.py（clothesロード）/ game/model.py（outfit保存）/ game/ui.py（WardrobeMenu）/ game/render.py（サムネ描画）
+
+============================================================
+6) おやつ（SNACK）
+[ ] SNACKボタンが存在する
+[ ] おやつ選択画面が開く（一覧/ページング/閉じる）
+[ ] assets/snacks/snacks.json を読む（種類追加がデータ駆動）
+[ ] アイコン assets/snacks/icons/*.png が表示される
+[ ] おやつの効果が適用される（好感度/満腹/気分など）
+[ ] おやつ種類でリアクション台詞が変わる（react_tag）
+[ ] snack履歴（last_snack_id / last_snack_at / count）が保存される
+担当: game/snacks.py / game/ui.py（SnackMenu）/ game/sim.py（apply_snack）/ game/dialogue.py（react_tag）/ game/assets.py
+
+============================================================
+7) サウンド
+[ ] SFX ON/OFF
+[ ] 音量
+担当: game/assets.py / game/ui.py / main.py
+
+============================================================
+8) ジャーナル/ログ
+[ ] 会話ログが記録される
+[ ] UIから表示できる
+担当: game/journal.py / game/ui.py
+
+============================================================
+9) デバッグ・観測（推奨）
+[ ] F1 などで「デバッグ表示ON」（任意）
+    - outfit / x_offset / vx / state / menu open 状態
+    - 直近snack id / talk状態
+担当: main.py / game/render.py
+
+============================================================
+運用ルール（超重要）
+- パッチを当てる前に、このファイルのチェックボックスを見て「何が守られるべきか」を確認
+- パッチ後に「3)X軸移動」「5)衣装」「6)おやつ」を最低限チェック
+- できれば Git を導入してタグを切る:
+    git init
+    git add .
+    git commit -m "savepoint: xmove+wardrobe"
+    git tag savepoint-2026-02-04

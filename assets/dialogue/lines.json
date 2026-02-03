@@ -1,0 +1,43 @@
+{
+  "meta": { "version": 1, "notes": "会話データ。好きに増やしてOK" },
+
+  "chatter": {
+    "interval_sec": [6.0, 13.0],
+    "chance_per_tick": 1.0
+  },
+
+  "lines": [
+    { "id": "idle_001", "tags": ["idle"], "text": "ねえねえ、今なにしてる？" },
+    { "id": "idle_002", "tags": ["idle"], "text": "それ、集中してる顔。" },
+    { "id": "idle_003", "tags": ["idle"], "text": "今日の気分、甘いの寄り。" },
+
+    { "id": "music_001", "tags": ["music"], "text": "♪ いま脳内BGMこれ。" },
+    { "id": "music_002", "tags": ["music"], "text": "ね、作業用プレイリスト作ろ？" },
+
+    { "id": "sleep_001", "tags": ["sleep"], "text": "……zzz" },
+    { "id": "sleep_002", "tags": ["sleep"], "text": "起きてる…たぶん…" },
+
+    { "id": "grumpy_001", "tags": ["grumpy"], "text": "むす。放置はだめ。" },
+    { "id": "grumpy_002", "tags": ["grumpy"], "text": "さみしいって言ったら負けな気がする。" },
+
+    { "id": "react_snack_001", "tags": ["react_snack"], "text": "おやつ！天才！" },
+    { "id": "react_snack_002", "tags": ["react_snack"], "text": "……これ、優勝。" },
+
+    { "id": "react_pet_001", "tags": ["react_pet"], "text": "なでるの、合法？" },
+    { "id": "react_pet_002", "tags": ["react_pet"], "text": "ちょ、今のずるい。" },
+
+    { "id": "react_lights_off_001", "tags": ["react_lights_off"], "text": "くらいの、落ち着く。" },
+    { "id": "react_lights_on_001", "tags": ["react_lights_on"], "text": "まぶしっ。現実だ…" },
+
+    { "id": "greet_short_001", "tags": ["greet_short"], "text": "おかえり〜。聞いて聞いて。" },
+    { "id": "greet_long_001", "tags": ["greet_long"], "text": "ひさしぶり。ちょっとだけ…さみしかった。" },
+
+    { "id": "bye_001", "tags": ["bye"], "text": "またね。続きはまた今度！" },
+    { "id": "bye_002", "tags": ["bye"], "text": "じゃ、見送ってあげる。…またね。" },
+
+    { "id": "tap_001", "tags": ["tap"], "text": "なになに？呼んだ？" },
+    { "id": "tap_002", "tags": ["tap"], "text": "いま喋っていいターン？" },
+    
+    { "id":"bg_001", "tags":["react_bg"], "text":"背景変えよ。気分転換。" }
+  ]
+}

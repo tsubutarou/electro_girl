@@ -1,0 +1,92 @@
+from __future__ import annotations
+import os
+import pygame
+
+from . import config as cfg
+
+
+def load_image(path: str) -> pygame.Surface:
+    """画像を読み込んで convert_alpha して返す"""
+    return pygame.image.load(path).convert_alpha()
+
+
+def scale_nearest(img: pygame.Surface, scale: int) -> pygame.Surface:
+    """ドット絵向け：ニアレストで整数倍拡大"""
+    w, h = img.get_size()
+    return pygame.transform.scale(img, (w * scale, h * scale))
+
+
+def safe_sound(path: str):
+    try:
+        if os.path.exists(path):
+            return pygame.mixer.Sound(path)
+    except Exception:
+        pass
+    return None
+
+
+def load_sprites(scale: int = 3) -> dict[str, pygame.Surface]:
+    """
+    既存：状態別の立ち絵（idle/sleep/music/grumpy）
+    追加：瞬き/口パク用の body/face（存在しなければロードしない）
+    追加：表情差分 face_{normal/smile/trouble}（存在しなければロードしない）
+    """
+    sprites_raw: dict[str, pygame.Surface] = {
+        "idle":   load_image(os.path.join(cfg.IMG_DIR, "girl_idle.png")),
+        "sleep":  load_image(os.path.join(cfg.IMG_DIR, "girl_sleep.png")),
+        "music":  load_image(os.path.join(cfg.IMG_DIR, "girl_music.png")),
+        "grumpy": load_image(os.path.join(cfg.IMG_DIR, "girl_grumpy.png")),
+    }
+
+    # assets_root は assets/img の1つ上（= assets）
+    assets_root = os.path.dirname(cfg.IMG_DIR)
+
+    # ---- body ----
+    body_path = os.path.join(assets_root, "sprite", "body_idle.png")
+    if os.path.exists(body_path):
+        sprites_raw["body_idle"] = load_image(body_path)
+
+    # ---- face base expressions ----
+    for name in ("normal", "smile", "trouble"):
+        p = os.path.join(assets_root, "sprite", "face", f"{name}.png")
+        if os.path.exists(p):
+            sprites_raw[f"face_{name}"] = load_image(p)
+
+
+    # ---- clothes ----
+    clothes_dir = os.path.join(assets_root, "sprite", "clothes")
+    if os.path.isdir(clothes_dir):
+        for fn in os.listdir(clothes_dir):
+            if not fn.lower().endswith(".png"):
+                continue
+            oid = os.path.splitext(fn)[0]
+            try:
+                sprites_raw[f"clothes_{oid}"] = load_image(os.path.join(clothes_dir, fn))
+            except Exception:
+                pass
+
+    # ---- overlays ----
+    blink_p = os.path.join(assets_root, "sprite", "face", "blink.png")
+    mouth_p = os.path.join(assets_root, "sprite", "face", "mouth.png")
+    if os.path.exists(blink_p):
+        sprites_raw["face_blink"] = load_image(blink_p)
+    if os.path.exists(mouth_p):
+        sprites_raw["face_mouth"] = load_image(mouth_p)
+
+    return {k: scale_nearest(v, scale) for k, v in sprites_raw.items()}
+
+
+def load_sounds(mixer_ok: bool) -> dict[str, object]:
+    if not mixer_ok:
+        return {}
+    sounds = {
+        "snack": safe_sound(os.path.join(cfg.SFX_DIR, "se_snack.wav")),
+        "pet":   safe_sound(os.path.join(cfg.SFX_DIR, "se_pet.wav")),
+        "off":   safe_sound(os.path.join(cfg.SFX_DIR, "se_lights_off.wav")),
+        "on":    safe_sound(os.path.join(cfg.SFX_DIR, "se_lights_on.wav")),
+        "talk":  safe_sound(os.path.join(cfg.SFX_DIR, "se_talk.wav")),
+    }
+    for k, v in sounds.items():
+        if v:
+            v.set_volume(0.30 if k in ("pet", "talk") else 0.35)
+    return sounds
