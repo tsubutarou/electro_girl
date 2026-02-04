@@ -87,14 +87,12 @@ def draw_frame(
     pygame.draw.rect(screen, (110, 110, 135), frame_rect, 2, 10)
 
     # =========================
-    # キャラ描画（body + face合成）
+    # キャラ描画（安全版：合成 → 反転）
     # =========================
     now = time.time()
     vx = float(getattr(g, "vx_px_per_sec", 0.0))
-
-    # Walking is a movement state; keep it independent of lights-off (dark) and sleep-stage.
-    # If you want "no walking in the dark", handle it in sim/behavior, not rendering.
     walking = (abs(vx) > 0.01) and (getattr(g, "state", "idle") != "sleep")
+    flip_x = vx < 0
 
     # optional walk frames (keys: body_walk_0, body_walk_1, ...)
     walk_keys = [k for k in sprites.keys() if k.startswith("body_walk_")]
@@ -109,17 +107,7 @@ def draw_frame(
         frame = int((now * float(getattr(cfg, "WALK_ANIM_FPS", 10.0))) % len(walk_keys))
         body_src = sprites.get(walk_keys[frame], sprites.get("body_idle"))
     else:
-        body_src = sprites.get("body_idle") or sprites.get(g.state, sprites["idle"])
-
-    # direction (flip) + bobbing
-    flip_x = vx < 0
-    body = body_src
-    if body_src and flip_x:
-        key = (id(body_src), True, False)
-        body = _FLIP_CACHE.get(key)
-        if body is None:
-            body = pygame.transform.flip(body_src, True, False)
-            _FLIP_CACHE[key] = body
+        body_src = sprites.get("body_idle") or sprites.get(g.state, sprites.get("idle"))
 
     bob = 0
     if walking:
@@ -127,41 +115,49 @@ def draw_frame(
         bob_hz = float(getattr(cfg, "WALK_BOB_HZ", 6.0))
         bob = int(math.sin(now * bob_hz * math.tau) * bob_px)
 
-    if body:
-        screen.blit(body, body.get_rect(center=(cx, cy + bob)))
+    if body_src:
+        bw, bh = body_src.get_size()
+        # Generous transparent canvas so offsets don't clip.
+        char = pygame.Surface((bw * 2, bh * 2), pygame.SRCALPHA)
+        center = (char.get_width() // 2, char.get_height() // 2)
 
-    # clothes overlay（衣装ごとのオフセット対応）
-    oid = getattr(g, "outfit", "normal")
-    clothes = sprites.get(f"clothes_{oid}") or sprites.get("clothes_normal")
-    if clothes:
-        off = (0, 0)
-        if isinstance(clothes_offsets, dict):
-            off = clothes_offsets.get(oid) or clothes_offsets.get("normal") or (0, 0)
-        ox, oy = off
-        screen.blit(clothes, clothes.get_rect(center=(cx + int(ox), cy + int(oy) + bob)))
+        # body (unflipped)
+        char.blit(body_src, body_src.get_rect(center=center))
 
-    # face合成：ベース顔は常に描き、瞬き・口を上に重ねる
-    expr = getattr(g, "expression", "normal")
-    face_base = sprites.get(f"face_{expr}") or sprites.get("face_normal")
+        # clothes overlay（衣装ごとのオフセット対応）
+        oid = getattr(g, "outfit", "normal")
+        clothes = sprites.get(f"clothes_{oid}") or sprites.get("clothes_normal")
+        if clothes:
+            off = (0, 0)
+            if isinstance(clothes_offsets, dict):
+                off = clothes_offsets.get(oid) or clothes_offsets.get("normal") or (0, 0)
+            ox, oy = off
+            char.blit(clothes, clothes.get_rect(center=(center[0] + int(ox), center[1] + int(oy))))
 
-    if face_base:
-        screen.blit(face_base, face_base.get_rect(center=(cx, cy + bob)))
+        # face（表情＋瞬き＋口パク）
+        expr = getattr(g, "expression", "normal")
+        face_base = sprites.get(f"face_{expr}") or sprites.get("face_normal")
+        if face_base:
+            char.blit(face_base, face_base.get_rect(center=center))
 
-        # 瞬き（目だけ透過の画像）
-        blink = sprites.get("face_blink")
-        if blink:
-            # NOTE: 「暗い」(lights_off) でも起きていることがある。
-            # 目閉じを強制するのは「実際に寝ている時」だけ。
-            if getattr(g, "sleep_stage", "awake") == "sleep" or getattr(g, "state", "") == "sleep":
-                screen.blit(blink, blink.get_rect(center=(cx, cy + bob)))
-            elif now < getattr(g, "blink_until", 0.0):
-                screen.blit(blink, blink.get_rect(center=(cx, cy + bob)))
+            blink = sprites.get("face_blink")
+            if blink:
+                # NOTE: 目閉じを強制するのは「実際に寝ている時」だけ。
+                if getattr(g, "sleep_stage", "awake") == "sleep" or getattr(g, "state", "") == "sleep":
+                    char.blit(blink, blink.get_rect(center=center))
+                elif now < getattr(g, "blink_until", 0.0):
+                    char.blit(blink, blink.get_rect(center=center))
 
-        # 口パク（口だけ透過の画像）
-        if getattr(g, "mouth_open", False):
-            mouth = sprites.get("face_mouth")
-            if mouth:
-                screen.blit(mouth, mouth.get_rect(center=(cx, cy + bob)))
+            if getattr(g, "mouth_open", False):
+                mouth = sprites.get("face_mouth")
+                if mouth:
+                    char.blit(mouth, mouth.get_rect(center=center))
+
+        # Final flip applied ONCE to the composed character.
+        if flip_x:
+            char = pygame.transform.flip(char, True, False)
+
+        screen.blit(char, char.get_rect(center=(cx, cy + bob)))
 
     # ---- lights overlay ----
     if g.lights_off:

@@ -931,6 +931,48 @@ def main():
         if now >= g.state_until:
             pick_idle_state(g, dlg, now)
 
+        # ---- debug: manual X move (F1) ----
+        # While the debug HUD is on, allow manual left/right movement for quick wall/flip testing.
+        manual_dir = 0
+        if debug_hud:
+            keys = pygame.key.get_pressed()
+            if keys[pygame.K_LEFT]:
+                manual_dir = -1
+            elif keys[pygame.K_RIGHT]:
+                manual_dir = 1
+            else:
+                # click inside the character frame to push her left/right
+                if pygame.mouse.get_pressed(num_buttons=3)[0]:
+                    mx, my = pygame.mouse.get_pos()
+                    frame_top = 60
+                    frame_bottom = cfg.H - 64
+                    frame_h = max(110, frame_bottom - frame_top)
+                    frame_rect = pygame.Rect(cfg.RIGHT_X, frame_top, cfg.RIGHT_PANEL_W, frame_h)
+                    if frame_rect.collidepoint((mx, my)):
+                        manual_dir = -1 if mx < frame_rect.centerx else 1
+
+        if manual_dir != 0:
+            # Override movement AFTER the sim step so it cannot be immediately overwritten.
+            if not hasattr(g, "x_offset"):
+                g.x_offset = 0.0
+            speed = float(getattr(cfg, "WALK_SPEED_PX_PER_SEC", 22.0))
+            g.vx_px_per_sec = manual_dir * speed
+            g.x_offset = float(getattr(g, "x_offset", 0.0)) + g.vx_px_per_sec * dt
+
+            # Clamp within the right panel bounds.
+            margin = int(getattr(cfg, "WALK_MARGIN_PX", 10))
+            max_off = max(0, (cfg.RIGHT_PANEL_W // 2) - margin)
+            if g.x_offset < -max_off:
+                g.x_offset = -max_off
+            if g.x_offset > max_off:
+                g.x_offset = max_off
+        elif debug_hud:
+            # If manual input is not active, do not interfere with auto-walk.
+            # But if auto-walk is not currently running, ensure vx doesn't stay non-zero.
+            if hasattr(g, "walk_until") and now >= float(getattr(g, "walk_until", now)):
+                if abs(float(getattr(g, "vx_px_per_sec", 0.0))) > 0.01:
+                    g.vx_px_per_sec = 0.0
+
         # ---- blink / mouth (dialogue animation) ----
 
 
