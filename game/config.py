@@ -1,7 +1,9 @@
 from __future__ import annotations
 import os
 
-W, H = 360, 200
+# Window size
+# A slightly vertical "toy" aspect ratio (tamagotchi-ish).
+W, H = 360, 320
 FPS = 60
 
 SAVE_PATH = "save.json"

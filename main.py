@@ -284,7 +284,7 @@ def main():
     pick_idle_state(g, dlg, now)
     greet_on_start(g, dlg, now)
 
-    btn_snack, btn_pet, btn_light, gear, talk, wardrobe, bg_menu, snack_menu = make_buttons()
+    btn_snack, btn_pet, btn_light, btn_char, gear, talk, wardrobe, bg_menu, snack_menu = make_buttons()
 
     # ---- background images (auto from assets/background) ----
     bg_images, bg_image_thumbs = load_background_images(scale=1, thumb_size=(40, 40))
@@ -359,7 +359,7 @@ def main():
         while time.time() < end_at:
             for _e in pygame.event.get():
                 pass
-            btns = [btn_snack, btn_pet, btn_light, talk.btn_talk, *gear.all_buttons_for_draw()]
+            btns = [btn_snack, btn_pet, btn_light, talk.btn_talk, btn_char, *gear.all_buttons_for_draw()]
             bg_img, bg_lbl = current_background()
             draw_frame(
                 screen, font, font_small, sprites, g, btns, pygame.mouse.get_pos(),
@@ -615,6 +615,13 @@ def main():
                     bg_menu.close()
                 if snack_menu.open and (not snack_menu.hit_any(pos)) and (not btn_snack.hit(pos)):
                     snack_menu.close()
+
+                if btn_char.hit(pos):
+                    wardrobe.toggle()
+                    if wardrobe.open:
+                        wardrobe.relayout(outfits, sprites)
+                    play_sfx("talk")
+                    continue
 
                 if gear.btn_gear.hit(pos):
                     gear.toggle()
@@ -978,7 +985,7 @@ def main():
         # wardrobe outfits list (auto from loaded sprites)
         outfits = sorted({k[len("clothes_"):] for k in sprites.keys() if k.startswith("clothes_")})
         # relayout is handled above when wardrobe.open is True
-        btns = [btn_snack, btn_pet, btn_light, talk.btn_talk, *gear.all_buttons_for_draw()]
+        btns = [btn_snack, btn_pet, btn_light, talk.btn_talk, btn_char, *gear.all_buttons_for_draw()]
         # wardrobe buttons are drawn inside draw_frame, but keep hover calc independent
         debug_lines = None
         if debug_hud:

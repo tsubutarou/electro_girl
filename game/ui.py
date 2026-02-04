@@ -435,7 +435,9 @@ class GearMenu:
         return btns
 class TalkMenu:
     def __init__(self):
-        self.btn_talk = Button((cfg.W - 64, cfg.H - 44, 56, 32), "TALK")
+        # NOTE: ボタン配置は make_buttons() でも上書きされる。
+        # ここは「初期値としての安全なデフォルト」。
+        self.btn_talk = Button((cfg.LEFT_X + 86 * 3, cfg.H - 44, 56, 32), "TALK")
         self.open = False
         self.panel = pygame.Rect(0, 0, 0, 0)
 
@@ -540,13 +542,33 @@ class TalkMenu:
 
 
 def make_buttons():
-    btn_snack = Button((cfg.LEFT_X, cfg.H - 44, 80, 32), "SNACK")
-    btn_pet = Button((cfg.LEFT_X + 86, cfg.H - 44, 80, 32), "PET")
-    btn_light = Button((cfg.LEFT_X + 172, cfg.H - 44, 80, 32), "LIGHTS")
+    # ---- bottom-left: SNACK, PET, LIGHTS, TALK ----
+    y_bottom = cfg.H - 44
+    gap = 6
+    btn_w = 80
+    btn_h = 32
+
+    btn_snack = Button((cfg.LEFT_X, y_bottom, btn_w, btn_h), "SNACK")
+    btn_pet = Button((cfg.LEFT_X + (btn_w + gap) * 1, y_bottom, btn_w, btn_h), "PET")
+    btn_light = Button((cfg.LEFT_X + (btn_w + gap) * 2, y_bottom, btn_w, btn_h), "LIGHTS")
 
     gear = GearMenu()
     talk = TalkMenu()
     wardrobe = WardrobeMenu()
     bg_menu = BackgroundMenu()
     snack_menu = SnackMenu()
-    return btn_snack, btn_pet, btn_light, gear, talk, wardrobe, bg_menu, snack_menu
+
+    # move TALK to bottom-left row (after LIGHTS)
+    talk.btn_talk.rect = pygame.Rect(cfg.LEFT_X + (btn_w + gap) * 3, y_bottom, 56, btn_h)
+
+    # ---- top-right: CHAR, ⚙(gear) ----
+    # right aligned, order: [CHAR][⚙]
+    top_y = 8
+    gear.btn_gear.rect = pygame.Rect(cfg.W - 34, top_y, 26, 22)
+    char_w, char_h = 54, 22
+    char_x = gear.btn_gear.rect.left - gap - char_w
+    btn_char = Button((char_x, top_y, char_w, char_h), "CHAR")
+    # relayout settings panel based on updated gear button rect
+    gear.relayout()
+
+    return btn_snack, btn_pet, btn_light, btn_char, gear, talk, wardrobe, bg_menu, snack_menu

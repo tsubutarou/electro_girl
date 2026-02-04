@@ -70,10 +70,19 @@ def draw_frame(
     screen.blit(font_small.render(f"bg:{bg_label}", True, (170, 170, 190)), (cfg.LEFT_X, 70))
 
     # ---- character frame ----
+    # Make room for a taller, more "toy"-like vertical window.
+    # Keep the right panel width, but increase the frame height so the full body can fit.
     cx = cfg.RIGHT_X + cfg.RIGHT_PANEL_W // 2
     cx += int(getattr(g, 'x_offset', 0))
-    cy = 92
-    frame_rect = pygame.Rect(cfg.RIGHT_X, cy - 44, cfg.RIGHT_PANEL_W, 88)
+
+    # Frame: occupy the right panel area between the header and bottom buttons.
+    frame_top = 60
+    frame_bottom = cfg.H - 64
+    frame_h = max(110, frame_bottom - frame_top)
+    frame_rect = pygame.Rect(cfg.RIGHT_X, frame_top, cfg.RIGHT_PANEL_W, frame_h)
+
+    # Character anchor point: slightly lower than center so the body tends to sit "on" the bottom.
+    cy = frame_rect.bottom - int(frame_rect.height * 0.35)
     pygame.draw.rect(screen, (45, 45, 58), frame_rect, 0, 10)
     pygame.draw.rect(screen, (110, 110, 135), frame_rect, 2, 10)
 
