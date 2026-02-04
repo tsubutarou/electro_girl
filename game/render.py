@@ -74,18 +74,14 @@ def draw_frame(
     screen.blit(font_small.render(f"bg:{bg_label}", True, (170, 170, 190)), (cfg.LEFT_X, 70))
 
     # ---- character frame ----
-    # Make room for a taller, more "toy"-like vertical window.
-    # Keep the right panel width, but increase the frame height so the full body can fit.
     cx = cfg.RIGHT_X + cfg.RIGHT_PANEL_W // 2
-    cx += int(getattr(g, 'x_offset', 0))
+    cx += int(getattr(g, "x_offset", 0))
 
-    # Frame: occupy the right panel area between the header and bottom buttons.
     frame_top = 60
     frame_bottom = cfg.H - 64
     frame_h = max(110, frame_bottom - frame_top)
     frame_rect = pygame.Rect(cfg.RIGHT_X, frame_top, cfg.RIGHT_PANEL_W, frame_h)
 
-    # Character anchor point: slightly lower than center so the body tends to sit "on" the bottom.
     cy = frame_rect.bottom - int(frame_rect.height * 0.35)
     pygame.draw.rect(screen, (45, 45, 58), frame_rect, 0, 10)
     pygame.draw.rect(screen, (110, 110, 135), frame_rect, 2, 10)
@@ -94,15 +90,19 @@ def draw_frame(
     # キャラ描画（body + face合成）
     # =========================
     now = time.time()
-    # body（なければ従来の立ち絵）
     vx = float(getattr(g, "vx_px_per_sec", 0.0))
-    walking = (abs(vx) > 0.01) and (not getattr(g, "lights_off", False)) and (getattr(g, "state", "idle") != "sleep")
+
+    # Walking is a movement state; keep it independent of lights-off (dark) and sleep-stage.
+    # If you want "no walking in the dark", handle it in sim/behavior, not rendering.
+    walking = (abs(vx) > 0.01) and (getattr(g, "state", "idle") != "sleep")
 
     # optional walk frames (keys: body_walk_0, body_walk_1, ...)
     walk_keys = [k for k in sprites.keys() if k.startswith("body_walk_")]
+
     def _walk_key_sort(k: str) -> int:
         m = re.search(r"(\d+)$", k)
         return int(m.group(1)) if m else 0
+
     walk_keys.sort(key=_walk_key_sort)
 
     if walking and walk_keys:
@@ -111,7 +111,7 @@ def draw_frame(
     else:
         body_src = sprites.get("body_idle") or sprites.get(g.state, sprites["idle"])
 
-    # direction (flip) + bobbing (asset-free "walk feel")
+    # direction (flip) + bobbing
     flip_x = vx < 0
     body = body_src
     if body_src and flip_x:
@@ -127,22 +127,18 @@ def draw_frame(
         bob_hz = float(getattr(cfg, "WALK_BOB_HZ", 6.0))
         bob = int(math.sin(now * bob_hz * math.tau) * bob_px)
 
-    screen.blit(body, body.get_rect(center=(cx, cy + bob)))
-
+    if body:
+        screen.blit(body, body.get_rect(center=(cx, cy + bob)))
 
     # clothes overlay（衣装ごとのオフセット対応）
     oid = getattr(g, "outfit", "normal")
     clothes = sprites.get(f"clothes_{oid}") or sprites.get("clothes_normal")
     if clothes:
-<<<<<<< HEAD
         off = (0, 0)
         if isinstance(clothes_offsets, dict):
             off = clothes_offsets.get(oid) or clothes_offsets.get("normal") or (0, 0)
         ox, oy = off
-        screen.blit(clothes, clothes.get_rect(center=(cx + int(ox), cy + int(oy))))
-=======
-        screen.blit(clothes, clothes.get_rect(center=(cx, cy + bob)))
->>>>>>> 5787611010b0696915549e570110d2d891373808
+        screen.blit(clothes, clothes.get_rect(center=(cx + int(ox), cy + int(oy) + bob)))
 
     # face合成：ベース顔は常に描き、瞬き・口を上に重ねる
     expr = getattr(g, "expression", "normal")
@@ -154,16 +150,10 @@ def draw_frame(
         # 瞬き（目だけ透過の画像）
         blink = sprites.get("face_blink")
         if blink:
-<<<<<<< HEAD
-            # NOTE: "暗い"(lights_off) でも起きていることがあるため、
+            # NOTE: 「暗い」(lights_off) でも起きていることがある。
             # 目閉じを強制するのは「実際に寝ている時」だけ。
             if getattr(g, "sleep_stage", "awake") == "sleep" or getattr(g, "state", "") == "sleep":
-                screen.blit(blink, blink.get_rect(center=(cx, cy)))
-=======
-            # sleep中 / lights_off中は常に閉じ目
-            if getattr(g, "state", "") == "sleep" or getattr(g, "lights_off", False):
                 screen.blit(blink, blink.get_rect(center=(cx, cy + bob)))
->>>>>>> 5787611010b0696915549e570110d2d891373808
             elif now < getattr(g, "blink_until", 0.0):
                 screen.blit(blink, blink.get_rect(center=(cx, cy + bob)))
 
@@ -218,12 +208,10 @@ def draw_frame(
         pygame.draw.rect(screen, (35, 35, 46), wardrobe.panel, 0, 12)
         pygame.draw.rect(screen, (120, 120, 140), wardrobe.panel, 2, 12)
 
-        # buttons
         wardrobe.close_btn.draw(screen, font_small, wardrobe.close_btn.hit(mouse_pos))
         wardrobe.prev_btn.draw(screen, font_small, wardrobe.prev_btn.hit(mouse_pos))
         wardrobe.next_btn.draw(screen, font_small, wardrobe.next_btn.hit(mouse_pos))
 
-        # thumbs
         for it in getattr(wardrobe, "items", []):
             it.draw(
                 screen,
@@ -246,7 +234,6 @@ def draw_frame(
         if sel_mode == "image":
             sel_val = "img:" + (getattr(g, "bg_image_id", "") or "")
         else:
-            # theme selection by index
             try:
                 name = cfg.BG_THEMES[getattr(g, "bg_index", 0) % len(cfg.BG_THEMES)].get("name", "")
                 sel_val = "theme:" + str(name)
@@ -286,70 +273,24 @@ def draw_frame(
             screen.blit(surf, (panel.x + 10, y))
             y += 14
 
-    # ---- UI panels (gear / talk / wardrobe) ----
-    mx, my = mouse_pos
-
-    # gear menu panel background (buttons are in btns list)
-    if gear is not None and getattr(gear, "open", False):
-        pygame.draw.rect(screen, (40, 40, 52), gear.panel, 0, 10)
-        pygame.draw.rect(screen, (120, 120, 145), gear.panel, 2, 10)
-
-    # talk menu panel
-    if talk is not None and getattr(talk, "open", False):
-        pygame.draw.rect(screen, (40, 40, 52), talk.panel, 0, 10)
-        pygame.draw.rect(screen, (120, 120, 145), talk.panel, 2, 10)
-
-        # close / paging
-        talk.close_btn.draw(screen, font_small, talk.close_btn.hit((mx, my)))
-        talk.prev_btn.draw(screen, font_small, talk.prev_btn.hit((mx, my)))
-        talk.next_btn.draw(screen, font_small, talk.next_btn.hit((mx, my)))
-
-        # tabs
-        for tab in getattr(talk, "tabs", []):
-            tab.draw(screen, font_small, tab.hit((mx, my)))
-
-        # topic buttons
-        for b in getattr(talk, "topic_buttons", []):
-            b.draw(screen, font_small, b.hit((mx, my)))
-
-        # YES/NO if awaiting
-        if getattr(g, "awaiting_choice", False):
-            talk.btn_yes.draw(screen, font_small, talk.btn_yes.hit((mx, my)))
-            talk.btn_no.draw(screen, font_small, talk.btn_no.hit((mx, my)))
-
-    # wardrobe menu panel
-    if wardrobe is not None and getattr(wardrobe, "open", False):
-        pygame.draw.rect(screen, (40, 40, 52), wardrobe.panel, 0, 10)
-        pygame.draw.rect(screen, (120, 120, 145), wardrobe.panel, 2, 10)
-
-        wardrobe.close_btn.draw(screen, font_small, wardrobe.close_btn.hit((mx, my)))
-        wardrobe.prev_btn.draw(screen, font_small, wardrobe.prev_btn.hit((mx, my)))
-        wardrobe.next_btn.draw(screen, font_small, wardrobe.next_btn.hit((mx, my)))
-
-        sel = getattr(g, "outfit", "normal")
-        for it in getattr(wardrobe, "items", []):
-            it.draw(screen, font_small, it.hit((mx, my)), selected=(it.value == sel))
-
     # ---- base buttons ----
     mx, my = mouse_pos
     for b in btns:
         b.draw(screen, font_small, b.hit((mx, my)))
 
-
     # ---- speech bubble（UIより前面に表示）----
     line_txt = getattr(g, "line", "") or ""
-    walking = abs(float(getattr(g, "vx_px_per_sec", 0.0))) > 0.01
+    walking2 = abs(float(getattr(g, "vx_px_per_sec", 0.0))) > 0.01
     # NOTE: 睡眠中でも「寝言」や「起床セリフ」を表示できるようにする。
     # バブルを消すのは「歩行中（喋りながら歩かない）」のときだけ。
-    if walking:
+    if walking2:
         line_txt = ""
 
     if line_txt:
         bubble_w = (cfg.W - cfg.RIGHT_PANEL_W - 16) - cfg.LEFT_X
         bubble = pygame.Rect(cfg.LEFT_X, cfg.H - 44 - 36, bubble_w, 28)
 
-        # If bubble would overlap the *bottom action buttons* (SNACK/PET/TALK),
-        # lift it just above them. Ignore gear menu items that may be near the top.
+        # If bubble would overlap the *bottom action buttons*, lift it just above them.
         min_btn_top = None
         try:
             bottom_btns = [b for b in (btns or []) if hasattr(b, "rect") and b.rect.top >= (cfg.H - 80)]
