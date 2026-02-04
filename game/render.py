@@ -115,8 +115,9 @@ def draw_frame(
         # 瞬き（目だけ透過の画像）
         blink = sprites.get("face_blink")
         if blink:
-            # sleep中 / lights_off中は常に閉じ目
-            if getattr(g, "state", "") == "sleep" or getattr(g, "lights_off", False):
+            # NOTE: "暗い"(lights_off) でも起きていることがあるため、
+            # 目閉じを強制するのは「実際に寝ている時」だけ。
+            if getattr(g, "sleep_stage", "awake") == "sleep" or getattr(g, "state", "") == "sleep":
                 screen.blit(blink, blink.get_rect(center=(cx, cy)))
             elif now < getattr(g, "blink_until", 0.0):
                 screen.blit(blink, blink.get_rect(center=(cx, cy)))
@@ -293,7 +294,9 @@ def draw_frame(
     # ---- speech bubble（UIより前面に表示）----
     line_txt = getattr(g, "line", "") or ""
     walking = abs(float(getattr(g, "vx_px_per_sec", 0.0))) > 0.01
-    if walking or getattr(g, "state", "") == "sleep" or getattr(g, "lights_off", False):
+    # NOTE: 睡眠中でも「寝言」や「起床セリフ」を表示できるようにする。
+    # バブルを消すのは「歩行中（喋りながら歩かない）」のときだけ。
+    if walking:
         line_txt = ""
 
     if line_txt:

@@ -76,3 +76,33 @@ IDLE_SILENT_AFTER_LINE_MAX_SEC = 4.0
 IDLE_LINE_MIN_SEC = 2.2  # minimum display time for a line
 IDLE_LINE_MAX_SEC = 6.0  # maximum display time for a line
 IDLE_SEC_PER_CHAR = 0.07  # additional seconds per character
+
+# ---- lights-off sleep system ----
+# When lights are turned off, she becomes "sleep-ready" at a random time in this window.
+SLEEP_READY_MIN_SEC = 25.0
+SLEEP_READY_MAX_SEC = 120.0
+
+# In the dark, before sleep_ready_at, she *rarely* falls asleep.
+SLEEP_CHANCE_DARK_PRE_READY = 0.02
+
+# In the dark, after sleep_ready_at, she falls asleep with high probability per action beat.
+SLEEP_CHANCE_DARK_READY = 0.80
+
+# When lights turn ON while sleeping, she usually wakes up, but sometimes keeps sleeping.
+WAKE_CHANCE_BRIGHT_WHILE_SLEEPING = 0.85
+
+# --- Sleep talk (phase2) ---
+# While sleeping, she can be silent, mumble (sleep_talk), or wake up depending on lights.
+SLEEP_TALK_CHANCE_DARK = 0.22   # sleeping + dark -> sleep talk chance per beat
+SLEEP_TALK_CHANCE_BRIGHT = 0.12 # sleeping + bright -> sleep talk chance per beat
+WAKE_CHANCE_DARK_WHILE_SLEEPING = 0.03  # sleeping + dark -> wake chance per beat (low)
+SLEEP_TALK_MIN_SEC = 1.2
+SLEEP_TALK_MAX_SEC = 2.6
+SLEEP_SILENT_BEAT_MIN_SEC = 2.0
+SLEEP_SILENT_BEAT_MAX_SEC = 4.0
+
+# Pre-sleep / wake transition durations
+DROWSY_MIN_SEC = 1.5
+DROWSY_MAX_SEC = 2.8
+WAKE_DROWSY_MIN_SEC = 0.9
+WAKE_DROWSY_MAX_SEC = 1.4

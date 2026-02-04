@@ -9,7 +9,8 @@ from . import config as cfg
 
 
 def pick_idle_state(g: Girl, dlg: Dialogue, now: float):
-    if g.lights_off or g.sleepiness >= 85:
+    # Only show the sleeping pose when she is actually sleeping.
+    if getattr(g, "sleep_stage", "awake") == "sleep" or g.sleepiness >= 85:
         g.state = "sleep"
     elif g.hunger <= 20 or g.mood <= 20:
         g.state = "grumpy"
@@ -17,7 +18,9 @@ def pick_idle_state(g: Girl, dlg: Dialogue, now: float):
         g.state = "music" if random.random() < 0.35 else "idle"
 
     g.state_until = now + random.uniform(cfg.IDLE_MIN_SEC, cfg.IDLE_MAX_SEC)
-    set_line(g, now, dlg.pick(g.state) or "……", (2.5, 5.0))
+    # Do not automatically speak while sleeping. (Sleep talk, if desired, is handled elsewhere.)
+    if g.state != "sleep":
+        set_line(g, now, dlg.pick(g.state) or "……", (2.5, 5.0))
 
 
 def step_sim(g: Girl, now: float, dt: float):
@@ -25,7 +28,7 @@ def step_sim(g: Girl, now: float, dt: float):
     g.mood = clamp(g.mood - cfg.MOOD_DECAY * dt)
     g.sleepiness = clamp(g.sleepiness + cfg.SLEEP_INC * dt)
 
-    if g.state == "sleep":
+    if getattr(g, "sleep_stage", "awake") == "sleep" or g.state == "sleep":
         g.sleepiness = clamp(g.sleepiness - 0.10 * dt * (cfg.LIGHTS_OFF_SLEEP_RECOVER if g.lights_off else 1.0))
         g.mood = clamp(g.mood + 0.02 * dt)
         g.hunger = clamp(g.hunger - 0.01 * dt)
@@ -44,8 +47,8 @@ def step_move(g: Girl, now: float, dt: float):
 
     Uses g.x_offset as an offset from the panel center in pixels.
     """
-    # Stop moving while sleeping / lights off (keep her calm)
-    if getattr(g, "lights_off", False) or getattr(g, "state", "") == "sleep":
+    # Stop moving while actually sleeping (and during short sleepy transitions).
+    if getattr(g, "sleep_stage", "awake") in ("drowsy", "sleep") or getattr(g, "state", "") == "sleep":
         g.vx_px_per_sec = 0.0
         # schedule a walk later to avoid immediate start upon wake
         if getattr(g, "next_walk_at", 0.0) < now:
@@ -115,6 +118,78 @@ def action_pet(g: Girl):
 
 def action_toggle_lights(g: Girl):
     g.lights_off = not g.lights_off
+
+    now = time.time()
+
+    # Turning lights OFF does not force immediate sleep; it starts a randomized sleep-readiness timer.
     if g.lights_off:
-        g.state = "sleep"
-        g.state_until = time.time() + random.uniform(8, 14)
+        g.sleep_ready_at = now + random.uniform(cfg.SLEEP_READY_MIN_SEC, cfg.SLEEP_READY_MAX_SEC)
+        # If she was already sleeping, keep sleeping. Otherwise stay awake.
+        if getattr(g, "sleep_stage", "awake") not in ("drowsy", "sleep"):
+            g.sleep_stage = "awake"
+            g.sleep_stage_until = 0.0
+    else:
+        # Turning lights ON while drowsy cancels the pre-sleep transition.
+        if getattr(g, "sleep_stage", "awake") == "drowsy":
+            g.sleep_stage = "awake"
+            g.sleep_stage_until = 0.0
+
+
+def maybe_start_pre_sleep(g: Girl, dlg: Dialogue, now: float) -> bool:
+    """Enter drowsy stage and show a short "yawn" line. Returns True if started."""
+    if getattr(g, "sleep_stage", "awake") != "awake":
+        return False
+    g.sleep_stage = "drowsy"
+    dur = random.uniform(cfg.DROWSY_MIN_SEC, cfg.DROWSY_MAX_SEC)
+    g.sleep_stage_until = now + dur
+    # Use dialogue tag if present; fall back to a short yawn.
+    set_line(g, now, dlg.pick("pre_sleep") or "ふぁ……", (dur, dur))
+    return True
+
+
+def maybe_start_wake_up(g: Girl, dlg: Dialogue, now: float) -> bool:
+    """Start a short wake-up groggy line before switching to awake. Returns True if started."""
+    if getattr(g, "sleep_stage", "awake") != "sleep":
+        return False
+    g.sleep_stage = "drowsy"
+    dur = random.uniform(cfg.WAKE_DROWSY_MIN_SEC, cfg.WAKE_DROWSY_MAX_SEC)
+    g.sleep_stage_until = now + dur
+    set_line(g, now, dlg.pick("wake") or "ん……", (dur, dur))
+    return True
+
+
+
+def maybe_start_sleep_talk(g: Girl, dlg: Dialogue, now: float) -> bool:
+    """While sleeping, occasionally mumble a short line (sleep talk).
+
+    Keeps sleep_stage as 'sleep'. Returns True if started.
+    """
+    if getattr(g, "sleep_stage", "awake") != "sleep":
+        return False
+    # Avoid overlapping lines.
+    if getattr(g, "line", "") and now < float(getattr(g, "line_until", 0.0)):
+        return False
+    dur = random.uniform(cfg.SLEEP_TALK_MIN_SEC, cfg.SLEEP_TALK_MAX_SEC)
+    # Use dialogue tag if present; fall back to cute mumbling.
+    fallback = random.choice(["……むにゃ……", "すやぁ……", "んぅ……", "……zzz……"])
+    set_line(g, now, dlg.pick("sleep_talk") or fallback, (dur, dur))
+    return True
+
+def step_sleep_system(g: Girl, dlg: Dialogue, now: float):
+    """Advance the sleep system state machine.
+
+    This function is intentionally time-based (no permanent locks), matching the
+    project's "always ends" design.
+    """
+    stage = getattr(g, "sleep_stage", "awake")
+
+    # Finish drowsy transition when its timer is over AND the line is no longer showing.
+    if stage == "drowsy" and now >= float(getattr(g, "sleep_stage_until", 0.0)) and now >= float(getattr(g, "line_until", 0.0)):
+        # Decide whether this drowsy was pre-sleep or wake-up based on lights and readiness.
+        if getattr(g, "lights_off", False):
+            g.sleep_stage = "sleep"
+            g.state = "sleep"
+        else:
+            g.sleep_stage = "awake"
+        g.sleep_stage_until = 0.0
+

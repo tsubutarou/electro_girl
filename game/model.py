@@ -18,6 +18,14 @@ class Girl:
     affection: int = 0
     lights_off: bool = False
 
+    # sleep system (separate from lights)
+    # sleep_stage: "awake" | "drowsy" | "sleep"
+    sleep_stage: str = "awake"
+    # when lights are turned off, she becomes sleep-ready at this time (epoch seconds)
+    sleep_ready_at: float = 0.0
+    # used for short transitions (yawn / wake-up groggy) (epoch seconds)
+    sleep_stage_until: float = 0.0
+
     state: str = "idle"
     state_until: float = 0.0
 

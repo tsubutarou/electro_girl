@@ -15,6 +15,10 @@ from game.assets import load_sprites, load_sounds, load_clothes_offsets, load_ba
 from game.sim import (
     step_sim,
     pick_idle_state,
+    step_sleep_system,
+    maybe_start_pre_sleep,
+    maybe_start_wake_up,
+    maybe_start_sleep_talk,
     action_snack,
     action_pet,
     action_toggle_lights,
@@ -277,6 +281,17 @@ def main():
     g.dock_bottom_right = getattr(g, "dock_bottom_right", True)
 
     now = time.time()
+    # --- ensure new sleep-system fields exist for older saves ---
+    if not hasattr(g, "sleep_stage"):
+        g.sleep_stage = "awake"
+    if not hasattr(g, "sleep_ready_at"):
+        g.sleep_ready_at = 0.0
+    if not hasattr(g, "sleep_stage_until"):
+        g.sleep_stage_until = 0.0
+    # If lights are already off on startup, schedule sleep readiness if missing.
+    if getattr(g, "lights_off", False) and float(getattr(g, "sleep_ready_at", 0.0)) <= now:
+        g.sleep_ready_at = now + random.uniform(cfg.SLEEP_READY_MIN_SEC, cfg.SLEEP_READY_MAX_SEC)
+
     if not g.first_seen:
         g.first_seen = now
         save(g)
@@ -911,6 +926,8 @@ def main():
 
         # シミュレーション
         step_sim(g, now, dt)
+        # sleep state machine (yawn / sleep / wake transitions)
+        step_sleep_system(g, dlg, now)
         if now >= g.state_until:
             pick_idle_state(g, dlg, now)
 
@@ -918,9 +935,13 @@ def main():
 
 
         # ---- 瞬き（放置でも動く）----
-        if now >= g.next_blink and g.blink_until <= now:
-            g.blink_until = now + 0.12
-            g.next_blink = now + random.uniform(3.0, 6.0)
+        # No blinking while actually sleeping.
+        if getattr(g, "sleep_stage", "awake") != "sleep":
+            if now >= g.next_blink and g.blink_until <= now:
+                g.blink_until = now + 0.12
+                g.next_blink = now + random.uniform(3.0, 6.0)
+        else:
+            g.blink_until = 0.0
 
         # ---- 口パク（セリフ表示中だけ）----
         if now < g.line_until:
@@ -965,18 +986,57 @@ def main():
             if not hasattr(g, "idle_next_at"):
                 g.idle_next_at = now + 2.0
 
-            # If we're not currently showing a line, and it's time to act, decide: talk or walk.
-            if (not walking) and (getattr(g, "state", "") != "sleep") and (not getattr(g, "lights_off", False)):
-                if (not getattr(g, "line", "")) and now >= float(getattr(g, "idle_next_at", now)):
-                    if random.random() < float(cfg.IDLE_DECIDE_WALK_CHANCE):
-                        # start walking
-                        _start_walking(g, now)
-                    else:
-                        # say one short line
-                        txt = dlg.pick(g.state) or "……"
-                        _set_line_auto(g, now, txt)
-                        play_sfx("talk")
-                    # next decision will be scheduled when the line finishes (or by step_move rest)
+            # If we're not currently showing a line, and it's time to act, decide the next behavior.
+            if (not walking) and (not getattr(g, "line", "")) and now >= float(getattr(g, "idle_next_at", now)):
+                sleep_stage = getattr(g, "sleep_stage", "awake")
+
+                # --- Sleeping behavior ---
+                if sleep_stage == "sleep" or getattr(g, "state", "") == "sleep":
+                    # While sleeping, pick among: wake (prob depends on lights), silent (most of the time),
+                    # and occasional sleep talk (mumbling).
+                    lights_off = bool(getattr(g, "lights_off", False))
+                    p_wake = float(cfg.WAKE_CHANCE_DARK_WHILE_SLEEPING if lights_off else cfg.WAKE_CHANCE_BRIGHT_WHILE_SLEEPING)
+                    p_talk = float(cfg.SLEEP_TALK_CHANCE_DARK if lights_off else cfg.SLEEP_TALK_CHANCE_BRIGHT)
+
+                    r = random.random()
+                    started = False
+                    if r < p_wake:
+                        started = maybe_start_wake_up(g, dlg, now)
+                        if started:
+                            play_sfx("talk")
+                    elif r < (p_wake + p_talk):
+                        started = maybe_start_sleep_talk(g, dlg, now)
+                        # (no sfx by default; sleep talk is subtle)
+
+                    # schedule next check (sleeping is calmer, slower)
+                    g.idle_next_at = now + random.uniform(float(cfg.SLEEP_SILENT_BEAT_MIN_SEC), float(cfg.SLEEP_SILENT_BEAT_MAX_SEC))
+                    continue
+
+# --- Drowsy transition ---
+                if sleep_stage == "drowsy":
+                    # Transitions are handled in step_sleep_system.
+                    g.idle_next_at = now + random.uniform(0.8, 1.4)
+                    continue
+
+                # --- Awake behavior ---
+                # In the dark, she can still talk / blink / wander, but she is likely to fall asleep.
+                if getattr(g, "lights_off", False):
+                    ready = now >= float(getattr(g, "sleep_ready_at", 0.0))
+                    p_sleep = float(cfg.SLEEP_CHANCE_DARK_READY if ready else cfg.SLEEP_CHANCE_DARK_PRE_READY)
+                    if random.random() < p_sleep:
+                        if maybe_start_pre_sleep(g, dlg, now):
+                            play_sfx("talk")
+                        # Next decision will be scheduled when the line ends.
+                        continue
+
+                # Otherwise: choose between walking and talking.
+                if random.random() < float(cfg.IDLE_DECIDE_WALK_CHANCE):
+                    _start_walking(g, now)
+                else:
+                    txt = dlg.pick(g.state) or "……"
+                    _set_line_auto(g, now, txt)
+                    play_sfx("talk")
+                # next decision will be scheduled when the line finishes (or by step_move rest)
         if now - last_save > 5:
             save(g)
             last_save = now
