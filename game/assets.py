@@ -27,6 +27,46 @@ def safe_sound(path: str):
     return None
 
 
+
+def load_atlas_sprites(assets_root: str) -> dict[str, pygame.Surface]:
+    """アトラス方式（atlas.png + atlas_map.json）からスプライトを切り出す。
+
+    置き場所（v0.1）:
+      assets/sprite/atlas.png
+      assets/sprite/atlas_map.json
+
+    atlas_map.json の slots には以下のような形式でタイル座標が入る:
+      "body_idle": {"col": 0, "row": 0}
+
+    ここで返す辞書キーは slots のキー名をそのまま使う。
+    """
+    atlas_png = os.path.join(assets_root, "sprite", "atlas.png")
+    atlas_map = os.path.join(assets_root, "sprite", "atlas_map.json")
+    if not (os.path.exists(atlas_png) and os.path.exists(atlas_map)):
+        return {}
+
+    try:
+        with open(atlas_map, "r", encoding="utf-8") as f:
+            m = json.load(f)
+        tile_w, tile_h = m.get("tile_size", [64, 64])
+        slots = m.get("slots", {})
+        atlas = load_image(atlas_png)
+    except Exception:
+        return {}
+
+    out: dict[str, pygame.Surface] = {}
+    for name, pos in slots.items():
+        try:
+            col = int(pos.get("col"))
+            row = int(pos.get("row"))
+            rect = pygame.Rect(col * tile_w, row * tile_h, tile_w, tile_h)
+            surf = pygame.Surface((tile_w, tile_h), pygame.SRCALPHA)
+            surf.blit(atlas, (0, 0), rect)
+            out[name] = surf
+        except Exception:
+            continue
+    return out
+
 def load_sprites(scale: int = 3) -> dict[str, pygame.Surface]:
     """
     既存：状態別の立ち絵（idle/sleep/music/grumpy）
@@ -42,6 +82,11 @@ def load_sprites(scale: int = 3) -> dict[str, pygame.Surface]:
 
     # assets_root は assets/img の1つ上（= assets）
     assets_root = os.path.dirname(cfg.IMG_DIR)
+
+    # ---- atlas (optional) ----
+    # atlas があればまず切り出して埋める（不足分は従来の分割PNGで補完する）
+    atlas_sprites_raw = load_atlas_sprites(assets_root)
+    sprites_raw.update(atlas_sprites_raw)
 
     # ---- body ----
     body_path = os.path.join(assets_root, "sprite", "body_idle.png")

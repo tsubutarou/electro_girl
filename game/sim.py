@@ -1,3 +1,14 @@
+"""Simulation / behavior rules.
+
+This module is the "biology" of ElectroGirl.
+
+Key design choices:
+  - Avoid hard locks ("can't do anything" states). Prefer timers + randomness.
+  - Separate environment (lights) from internal state (sleep stage).
+  - Keep behavior deterministic-ish for debugging, but lively enough to feel
+    like a tiny desktop creature.
+"""
+
 from __future__ import annotations
 import random
 import time
@@ -9,6 +20,12 @@ from . import config as cfg
 
 
 def pick_idle_state(g: Girl, dlg: Dialogue, now: float):
+    """Pick a short-lived pose/state when she is not busy.
+
+    NOTE:
+      - "sleep" pose is shown only when she is actually sleeping.
+      - Speech is disabled while sleeping; sleep talk is handled separately.
+    """
     # Only show the sleeping pose when she is actually sleeping.
     if getattr(g, "sleep_stage", "awake") == "sleep" or g.sleepiness >= 85:
         g.state = "sleep"
@@ -24,6 +41,7 @@ def pick_idle_state(g: Girl, dlg: Dialogue, now: float):
 
 
 def step_sim(g: Girl, now: float, dt: float):
+    """Advance core meters + movement each frame."""
     g.hunger = clamp(g.hunger - cfg.HUNGER_DECAY * dt)
     g.mood = clamp(g.mood - cfg.MOOD_DECAY * dt)
     g.sleepiness = clamp(g.sleepiness + cfg.SLEEP_INC * dt)
@@ -55,14 +73,15 @@ def step_move(g: Girl, now: float, dt: float):
             g.next_walk_at = now + random.uniform(cfg.WALK_REST_MIN_SEC, cfg.WALK_REST_MAX_SEC)
         return
 
-        # Stop moving while a line is displayed (no speaking while walking)
+    # Stop moving while a line is displayed (no speaking while walking)
     if getattr(g, "line", "") and now < getattr(g, "line_until", 0.0):
         g.vx_px_per_sec = 0.0
         # push next walk a bit into the future so she doesn't instantly resume
         g.next_walk_at = max(getattr(g, "next_walk_at", 0.0), now + random.uniform(cfg.WALK_REST_MIN_SEC, cfg.WALK_REST_MAX_SEC))
         return
 
-# ensure fields exist (older saves)
+    # Ensure fields exist (older saves). We keep this here so saves remain
+    # forward-compatible without migration steps.
     if not hasattr(g, "x_offset"):
         g.x_offset = 0.0
     if not hasattr(g, "vx_px_per_sec"):
@@ -112,11 +131,17 @@ def action_snack(g: Girl, snack: Snack | None = None):
 
 
 def action_pet(g: Girl):
+    """Petting is simple: mood up, affection up."""
     g.mood = clamp(g.mood + cfg.PET_MOOD_RECOVER)
     g.affection += 2
 
 
 def action_toggle_lights(g: Girl):
+    """Toggle lights without forcing sleep.
+
+    Turning lights off starts a randomized "ready to sleep" timer.
+    Turning lights on cancels the pre-sleep (drowsy) transition.
+    """
     g.lights_off = not g.lights_off
 
     now = time.time()
@@ -178,8 +203,8 @@ def maybe_start_sleep_talk(g: Girl, dlg: Dialogue, now: float) -> bool:
 def step_sleep_system(g: Girl, dlg: Dialogue, now: float):
     """Advance the sleep system state machine.
 
-    This function is intentionally time-based (no permanent locks), matching the
-    project's "always ends" design.
+    This is intentionally time-based (no permanent locks), matching the
+    project's "always ends" design. Any stage must eventually resolve.
     """
     stage = getattr(g, "sleep_stage", "awake")
 

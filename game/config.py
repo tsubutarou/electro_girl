@@ -106,3 +106,8 @@ DROWSY_MAX_SEC = 2.8
 WAKE_DROWSY_MIN_SEC = 0.9
 WAKE_DROWSY_MAX_SEC = 1.4
 
+
+
+# Atlas/animation rules
+FACE_DURING_WALK = False  # v0.1: walk中は表情パーツを重ねない
+CLOTHES_WALK_ANIM = True  # clothes_walk_* があれば歩行に合わせて切替

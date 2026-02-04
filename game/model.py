@@ -1,3 +1,13 @@
+"""Persistent model.
+
+Everything in the Girl dataclass is serialised to save.json.
+
+Rule of thumb:
+  - Add new fields with sensible defaults.
+  - Never remove/rename fields lightly (older saves will break).
+  - Prefer booleans/strings for "state" and small numbers for meters.
+"""
+
 from __future__ import annotations
 import json
 import os
@@ -7,6 +17,7 @@ from . import config as cfg
 
 
 def clamp(x, a=0, b=100):
+    """Clamp a value into [a, b]. Used for all meters."""
     return max(a, min(b, x))
 
 

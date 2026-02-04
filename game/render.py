@@ -127,6 +127,16 @@ def draw_frame(
         # clothes overlay（衣装ごとのオフセット対応）
         oid = getattr(g, "outfit", "normal")
         clothes = sprites.get(f"clothes_{oid}") or sprites.get("clothes_normal")
+
+        # Optional: 歩行アニメ衣装（v0.1: normalのみアトラスに同梱しやすい）
+        if walking and bool(getattr(cfg, "CLOTHES_WALK_ANIM", True)):
+            if oid == "normal":
+                ck = [k for k in sprites.keys() if k.startswith("clothes_walk_")]
+                ck.sort(key=lambda k: int(re.search(r"(\d+)$", k).group(1)) if re.search(r"(\d+)$", k) else 0)
+                if ck:
+                    frame = int((now * float(getattr(cfg, "WALK_ANIM_FPS", 10.0))) % len(ck))
+                    clothes = sprites.get(ck[frame], clothes)
+
         if clothes:
             off = (0, 0)
             if isinstance(clothes_offsets, dict):
@@ -135,10 +145,12 @@ def draw_frame(
             char.blit(clothes, clothes.get_rect(center=(center[0] + int(ox), center[1] + int(oy))))
 
         # face（表情＋瞬き＋口パク）
-        expr = getattr(g, "expression", "normal")
-        face_base = sprites.get(f"face_{expr}") or sprites.get("face_normal")
-        if face_base:
-            char.blit(face_base, face_base.get_rect(center=center))
+        # v0.1: walk中は表情パーツを重ねない（ニュートラル顔はbodyに焼き込み）
+        if (not walking) or bool(getattr(cfg, "FACE_DURING_WALK", False)):
+            expr = getattr(g, "expression", "normal")
+            face_base = sprites.get(f"face_{expr}") or sprites.get("face_normal")
+            if face_base:
+                char.blit(face_base, face_base.get_rect(center=center))
 
             blink = sprites.get("face_blink")
             if blink:
@@ -154,6 +166,7 @@ def draw_frame(
                     char.blit(mouth, mouth.get_rect(center=center))
 
         # Final flip applied ONCE to the composed character.
+
         if flip_x:
             char = pygame.transform.flip(char, True, False)
 

@@ -1,3 +1,16 @@
+"""ElectroGirl entry point.
+
+This file wires together:
+  - save/load (model.py)
+  - simulation ticks (sim.py)
+  - UI interactions (ui.py)
+  - rendering (render.py)
+
+Tip for future-you:
+  - Keep "environment" toggles (lights/background/window) separate from the
+    girl's internal state. The project works because nothing hard-locks.
+"""
+
 import os
 import time
 import random

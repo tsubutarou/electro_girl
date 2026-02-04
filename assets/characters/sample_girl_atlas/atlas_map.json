@@ -1,0 +1,78 @@
+{
+  "asset_spec": "atlas_v0.1",
+  "tile_size": [
+    64,
+    64
+  ],
+  "atlas_tiles": [
+    8,
+    8
+  ],
+  "slots": {
+    "body_idle": {
+      "col": 0,
+      "row": 0
+    },
+    "body_walk_0": {
+      "col": 1,
+      "row": 0
+    },
+    "body_walk_1": {
+      "col": 2,
+      "row": 0
+    },
+    "body_walk_2": {
+      "col": 3,
+      "row": 0
+    },
+    "body_sleep": {
+      "col": 4,
+      "row": 0
+    },
+    "body_drowsy": {
+      "col": 5,
+      "row": 0
+    },
+    "clothes_idle": {
+      "col": 0,
+      "row": 1
+    },
+    "clothes_walk_0": {
+      "col": 1,
+      "row": 1
+    },
+    "clothes_walk_1": {
+      "col": 2,
+      "row": 1
+    },
+    "clothes_walk_2": {
+      "col": 3,
+      "row": 1
+    },
+    "clothes_sleep": {
+      "col": 4,
+      "row": 1
+    },
+    "eye_open": {
+      "col": 0,
+      "row": 2
+    },
+    "eye_close": {
+      "col": 1,
+      "row": 2
+    },
+    "mouth_0": {
+      "col": 2,
+      "row": 2
+    },
+    "mouth_1": {
+      "col": 3,
+      "row": 2
+    },
+    "mouth_2": {
+      "col": 4,
+      "row": 2
+    }
+  },
+  "reserved_policy": "Unspecified slots are reserved for v0.2+."
+}
