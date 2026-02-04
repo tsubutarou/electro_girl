@@ -111,3 +111,10 @@ WAKE_DROWSY_MAX_SEC = 1.4
 # Atlas/animation rules
 FACE_DURING_WALK = False  # v0.1: walk中は表情パーツを重ねない
 CLOTHES_WALK_ANIM = True  # clothes_walk_* があれば歩行に合わせて切替
+
+
+# --- Dialogue bubble (multiline) ---
+BUBBLE_MAX_LINES = 3          # 1ページに表示する最大行数
+BUBBLE_PADDING_X = 8
+BUBBLE_PADDING_Y = 6
+BUBBLE_LINE_GAP = 2           # 行間の追加ピクセル

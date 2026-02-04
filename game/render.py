@@ -4,6 +4,34 @@ import time
 import math
 import re
 
+
+def _wrap_text_to_lines(text: str, font: pygame.font.Font, max_w: int) -> list[str]:
+    """Wrap text into multiple lines so each rendered line fits within max_w.
+    Newlines force line breaks. Japanese is wrapped per-character (safe default).
+    """
+    if not text:
+        return [""]
+    out: list[str] = []
+    for para in text.split("\n"):
+        if para == "":
+            out.append("")
+            continue
+        cur = ""
+        for ch in para:
+            test = cur + ch
+            if font.size(test)[0] <= max_w or cur == "":
+                cur = test
+            else:
+                out.append(cur)
+                cur = ch
+        if cur:
+            out.append(cur)
+    return out
+
+def _paginate_lines(lines: list[str], max_lines: int) -> list[list[str]]:
+    if max_lines <= 0:
+        return [lines]
+    return [lines[i:i+max_lines] for i in range(0, len(lines), max_lines)]
 from .model import Girl
 from . import config as cfg
 
@@ -287,7 +315,7 @@ def draw_frame(
     for b in btns:
         b.draw(screen, font_small, b.hit((mx, my)))
 
-    # ---- speech bubble（UIより前面に表示）----
+    # ---- speech bubble（UIより前面に表示 / 複数行＋ページ）----
     line_txt = getattr(g, "line", "") or ""
     walking2 = abs(float(getattr(g, "vx_px_per_sec", 0.0))) > 0.01
     # NOTE: 睡眠中でも「寝言」や「起床セリフ」を表示できるようにする。
@@ -297,7 +325,21 @@ def draw_frame(
 
     if line_txt:
         bubble_w = (cfg.W - cfg.RIGHT_PANEL_W - 16) - cfg.LEFT_X
-        bubble = pygame.Rect(cfg.LEFT_X, cfg.H - 44 - 36, bubble_w, 28)
+        inner_w = max(40, bubble_w - (cfg.BUBBLE_PADDING_X * 2))
+        max_lines = int(getattr(cfg, "BUBBLE_MAX_LINES", 3))
+        page_i = int(getattr(g, "line_page", 0))
+
+        wrapped = _wrap_text_to_lines(line_txt, font_small, inner_w)
+        pages = _paginate_lines(wrapped, max_lines)
+        if page_i >= len(pages):
+            page_i = max(0, len(pages) - 1)
+            g.line_page = page_i
+
+        show_lines = pages[page_i] if pages else [line_txt]
+        line_h = font_small.get_linesize() + int(getattr(cfg, "BUBBLE_LINE_GAP", 2))
+        bubble_h = (cfg.BUBBLE_PADDING_Y * 2) + (len(show_lines) * line_h)
+
+        bubble = pygame.Rect(cfg.LEFT_X, cfg.H - 44 - 36, bubble_w, bubble_h)
 
         # If bubble would overlap the *bottom action buttons*, lift it just above them.
         min_btn_top = None
@@ -313,9 +355,26 @@ def draw_frame(
 
         pygame.draw.rect(screen, (35, 35, 46), bubble, 0, 8)
         pygame.draw.rect(screen, (90, 90, 110), bubble, 2, 8)
-        screen.blit(font_small.render(line_txt, True, (235, 235, 245)), (bubble.x + 8, bubble.y + 6))
 
-    # ---- debug HUD (F1) ----
+        tx = bubble.x + cfg.BUBBLE_PADDING_X
+        ty = bubble.y + cfg.BUBBLE_PADDING_Y
+        for ln in show_lines:
+            screen.blit(font_small.render(ln, True, (235, 235, 245)), (tx, ty))
+            ty += line_h
+
+        if len(pages) > 1:
+            ind = "▶" if (page_i < len(pages) - 1) else "■"
+            ind_s = font_small.render(ind, True, (235, 235, 245))
+            screen.blit(ind_s, ind_s.get_rect(bottomright=(bubble.right - 6, bubble.bottom - 4)))
+
+        setattr(g, "_bubble_rect", bubble)
+        setattr(g, "_bubble_pages", len(pages))
+    else:
+        setattr(g, "_bubble_rect", None)
+        setattr(g, "_bubble_pages", 0)
+
+    # ---- debug HUD
+        # ---- debug HUD (F1) ----
     if debug_lines:
         pad = 6
         lines = [str(x) for x in debug_lines if x is not None]

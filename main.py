@@ -551,6 +551,21 @@ def main():
                 and e.button == 1
                 and (pygame.key.get_mods() & pygame.KMOD_CTRL)
             ):
+
+                # ---- multiline bubble: click to advance page ----
+                try:
+                    bub = getattr(g, "_bubble_rect", None)
+                    pages = int(getattr(g, "_bubble_pages", 0))
+                    if bub and pages > 1 and bub.collidepoint(e.pos):
+                        pi = int(getattr(g, "line_page", 0))
+                        if pi < pages - 1:
+                            g.line_page = pi + 1
+                            g.line_until = max(float(getattr(g, "line_until", 0.0)), now + 30.0)
+                        else:
+                            g.line_until = min(float(getattr(g, "line_until", now + 0.1)), now + 0.1)
+                        continue
+                except Exception:
+                    pass
                 dragging_window = True
                 drag_offset = e.pos
                 dock_disabled_by_drag = False
@@ -914,6 +929,20 @@ def main():
                     journal_scroll = max(0, journal_scroll - e.y)
 
             elif e.type == pygame.KEYDOWN:
+
+                # ---- multiline bubble: SPACE/ENTER to advance page ----
+                try:
+                    pages = int(getattr(g, "_bubble_pages", 0))
+                    if pages > 1 and e.key in (pygame.K_SPACE, pygame.K_RETURN):
+                        pi = int(getattr(g, "line_page", 0))
+                        if pi < pages - 1:
+                            g.line_page = pi + 1
+                            g.line_until = max(float(getattr(g, "line_until", 0.0)), now + 30.0)
+                        else:
+                            g.line_until = min(float(getattr(g, "line_until", now + 0.1)), now + 0.1)
+                        continue
+                except Exception:
+                    pass
                 if e.key == pygame.K_ESCAPE:
                     # まずは開いているパネルを閉じる。何も開いていなければ終了。
                     if ctx_open:

@@ -64,6 +64,7 @@ class Dialogue:
 
 def set_line(g: Girl, now: float, text: str, t=(2.5, 5.0)):
     g.line = text
+    g.line_page = 0  # multiline bubble: page index reset
     g.line_until = now + random.uniform(*t)
 
 
