@@ -190,6 +190,38 @@ def _should_quit_on_escape(gear, talk, journal_open: bool) -> bool:
     return True
 
 
+
+def _stop_walking(g, now: float):
+    """Stop walking immediately and schedule the next walk later."""
+    if hasattr(g, "vx_px_per_sec"):
+        g.vx_px_per_sec = 0.0
+    if hasattr(g, "walk_until"):
+        g.walk_until = now
+    if hasattr(g, "next_walk_at"):
+        g.next_walk_at = now + random.uniform(cfg.WALK_REST_MIN_SEC, cfg.WALK_REST_MAX_SEC)
+
+
+def _start_walking(g, now: float):
+    """Request walking to start as soon as possible (sim.step_move will pick direction/speed)."""
+    # If we are "silent" but line_until is still in the future, unlock movement.
+    if hasattr(g, "line_until") and getattr(g, "line", "") == "":
+        g.line_until = now
+
+    if hasattr(g, "next_walk_at"):
+        g.next_walk_at = now
+    if hasattr(g, "walk_until"):
+        g.walk_until = now
+
+
+def _set_line_auto(g, now: float, text: str):
+    from game import config as cfg
+    # duration based on text length (keeps short lines readable, long lines not too long)
+    n = len(text)
+    dur = cfg.IDLE_LINE_MIN_SEC + n * cfg.IDLE_SEC_PER_CHAR
+    dur = max(cfg.IDLE_LINE_MIN_SEC, min(cfg.IDLE_LINE_MAX_SEC, dur))
+    g.line = text
+    g.line_until = now + dur
+
 def main():
     pygame.mixer.pre_init(44100, -16, 2, 512)
     pygame.init()
@@ -750,6 +782,8 @@ def main():
                     continue
 
                 # 行動ボタン
+                _stop_walking(g, now)
+
                 if btn_snack.hit(pos):
                     play_sfx("snack")
                     snack_menu.toggle()
@@ -818,6 +852,15 @@ def main():
         else:
             g.mouth_open = False
 
+        # clear line when finished (silent means truly silent)
+        if now >= g.line_until and getattr(g, "line", ""):
+            g.line = ""
+            g.line_until = now
+            # after a line ends, schedule the next idle decision
+            if not hasattr(g, "idle_next_at"):
+                g.idle_next_at = now
+            g.idle_next_at = now + random.uniform(cfg.IDLE_SILENT_AFTER_LINE_MIN_SEC, cfg.IDLE_SILENT_AFTER_LINE_MAX_SEC)
+
         # ---- UI layout (open menus are updated every frame) ----
         gear.update_labels(g)
         gear.relayout()
@@ -836,12 +879,24 @@ def main():
 
 
         # 自発おしゃべり（邪魔しない）
+                # ---- idle beat scheduler (after each line, decide next action) ----
         if (not talk.open) and (not journal_open) and (not g.awaiting_choice):
-            if dlg.should_chatter(now) and now >= g.line_until:
-                set_line(g, now, dlg.pick(g.state) or "……", (2.0, 4.0))
-                play_sfx("talk")
-                dlg.schedule_next_chatter(now)
+            walking = abs(float(getattr(g, "vx_px_per_sec", 0.0))) > 0.1
+            if not hasattr(g, "idle_next_at"):
+                g.idle_next_at = now + 2.0
 
+            # If we're not currently showing a line, and it's time to act, decide: talk or walk.
+            if (not walking) and (getattr(g, "state", "") != "sleep") and (not getattr(g, "lights_off", False)):
+                if (not getattr(g, "line", "")) and now >= float(getattr(g, "idle_next_at", now)):
+                    if random.random() < float(cfg.IDLE_DECIDE_WALK_CHANCE):
+                        # start walking
+                        _start_walking(g, now)
+                    else:
+                        # say one short line
+                        txt = dlg.pick(g.state) or "……"
+                        _set_line_auto(g, now, txt)
+                        play_sfx("talk")
+                    # next decision will be scheduled when the line finishes (or by step_move rest)
         if now - last_save > 5:
             save(g)
             last_save = now
@@ -849,7 +904,7 @@ def main():
 
         # wardrobe outfits list (auto from loaded sprites)
         outfits = sorted({k[len("clothes_"):] for k in sprites.keys() if k.startswith("clothes_")})
-        wardrobe.relayout(outfits, sprites)
+        # relayout is handled above when wardrobe.open is True
         btns = [btn_snack, btn_pet, btn_light, talk.btn_talk, *gear.all_buttons_for_draw()]
         # wardrobe buttons are drawn inside draw_frame, but keep hover calc independent
         debug_lines = None

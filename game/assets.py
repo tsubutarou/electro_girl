@@ -1,5 +1,6 @@
 from __future__ import annotations
 import os
+import re
 import pygame
 
 from . import config as cfg
@@ -45,6 +46,23 @@ def load_sprites(scale: int = 3) -> dict[str, pygame.Surface]:
     body_path = os.path.join(assets_root, "sprite", "body_idle.png")
     if os.path.exists(body_path):
         sprites_raw["body_idle"] = load_image(body_path)
+
+    # ---- body walk frames (optional) ----
+    # Put files like assets/sprite/body_walk_0.png, body_walk_1.png ...
+    walk_re = re.compile(r"^body_walk_(\d+)\.png$", re.IGNORECASE)
+    sprite_dir = os.path.join(assets_root, "sprite")
+    if os.path.isdir(sprite_dir):
+        walk_files = []
+        for fn in os.listdir(sprite_dir):
+            m2 = walk_re.match(fn)
+            if m2:
+                walk_files.append((int(m2.group(1)), fn))
+        for idx, fn in sorted(walk_files, key=lambda t: t[0]):
+            p = os.path.join(sprite_dir, fn)
+            try:
+                sprites_raw[f"body_walk_{idx}"] = load_image(p)
+            except Exception:
+                pass
 
     # ---- face base expressions ----
     for name in ("normal", "smile", "trouble"):

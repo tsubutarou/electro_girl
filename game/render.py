@@ -48,7 +48,8 @@ def draw_frame(
     screen.blit(font_small.render(f"bg:{theme_name}", True, (170, 170, 190)), (cfg.LEFT_X, 70))
 
     # ---- character frame ----
-    cx = cfg.RIGHT_X + cfg.RIGHT_PANEL_W // 2 + int(getattr(g, 'x_offset', 0.0))
+    cx = cfg.RIGHT_X + cfg.RIGHT_PANEL_W // 2
+    cx += int(getattr(g, 'x_offset', 0))
     cy = 92
     frame_rect = pygame.Rect(cfg.RIGHT_X, cy - 44, cfg.RIGHT_PANEL_W, 88)
     pygame.draw.rect(screen, (45, 45, 58), frame_rect, 0, 10)
@@ -181,13 +182,6 @@ def draw_frame(
             screen.blit(surf, (panel.x + 10, y))
             y += 14
 
-    # ---- speech bubble（会話は常に見える場所）----
-    bubble = pygame.Rect(cfg.LEFT_X, cfg.H - 44 - 36, (cfg.W - cfg.RIGHT_PANEL_W - 16) - cfg.LEFT_X, 28)
-    pygame.draw.rect(screen, (35, 35, 46), bubble, 0, 8)
-    pygame.draw.rect(screen, (90, 90, 110), bubble, 2, 8)
-    screen.blit(font_small.render(g.line, True, (235, 235, 245)), (bubble.x + 8, bubble.y + 6))
-
-
     # ---- UI panels (gear / talk / wardrobe) ----
     mx, my = mouse_pos
 
@@ -236,6 +230,34 @@ def draw_frame(
     mx, my = mouse_pos
     for b in btns:
         b.draw(screen, font_small, b.hit((mx, my)))
+
+
+    # ---- speech bubble（UIより前面に表示）----
+    line_txt = getattr(g, "line", "") or ""
+    walking = abs(float(getattr(g, "vx_px_per_sec", 0.0))) > 0.01
+    if walking or getattr(g, "state", "") == "sleep" or getattr(g, "lights_off", False):
+        line_txt = ""
+
+    if line_txt:
+        bubble_w = (cfg.W - cfg.RIGHT_PANEL_W - 16) - cfg.LEFT_X
+        bubble = pygame.Rect(cfg.LEFT_X, cfg.H - 44 - 36, bubble_w, 28)
+
+        # If bubble would overlap the *bottom action buttons* (SNACK/PET/TALK),
+        # lift it just above them. Ignore gear menu items that may be near the top.
+        min_btn_top = None
+        try:
+            bottom_btns = [b for b in (btns or []) if hasattr(b, "rect") and b.rect.top >= (cfg.H - 80)]
+            if bottom_btns:
+                min_btn_top = min(b.rect.top for b in bottom_btns)
+        except Exception:
+            min_btn_top = None
+
+        if min_btn_top is not None and bubble.bottom > (min_btn_top - 6):
+            bubble.bottom = max(32, min_btn_top - 6)
+
+        pygame.draw.rect(screen, (35, 35, 46), bubble, 0, 8)
+        pygame.draw.rect(screen, (90, 90, 110), bubble, 2, 8)
+        screen.blit(font_small.render(line_txt, True, (235, 235, 245)), (bubble.x + 8, bubble.y + 6))
 
     # ---- debug HUD (F1) ----
     if debug_lines:

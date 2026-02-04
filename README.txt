@@ -2,3 +2,6 @@
 
 .\.venv\Scripts\Activate.ps1
 
+
+以下のコマンドで実行
+python main.py

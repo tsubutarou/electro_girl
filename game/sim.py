@@ -52,7 +52,14 @@ def step_move(g: Girl, now: float, dt: float):
             g.next_walk_at = now + random.uniform(cfg.WALK_REST_MIN_SEC, cfg.WALK_REST_MAX_SEC)
         return
 
-    # ensure fields exist (older saves)
+        # Stop moving while a line is displayed (no speaking while walking)
+    if getattr(g, "line", "") and now < getattr(g, "line_until", 0.0):
+        g.vx_px_per_sec = 0.0
+        # push next walk a bit into the future so she doesn't instantly resume
+        g.next_walk_at = max(getattr(g, "next_walk_at", 0.0), now + random.uniform(cfg.WALK_REST_MIN_SEC, cfg.WALK_REST_MAX_SEC))
+        return
+
+# ensure fields exist (older saves)
     if not hasattr(g, "x_offset"):
         g.x_offset = 0.0
     if not hasattr(g, "vx_px_per_sec"):
