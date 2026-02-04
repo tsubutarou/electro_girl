@@ -1,9 +1,13 @@
 from __future__ import annotations
 import pygame
 import time
+import math
+import re
 
 from .model import Girl
 from . import config as cfg
+
+_FLIP_CACHE: dict[tuple[int, bool, bool], pygame.Surface] = {}
 
 
 def status_text(g: Girl) -> str:
@@ -90,43 +94,84 @@ def draw_frame(
     # キャラ描画（body + face合成）
     # =========================
     now = time.time()
-
     # body（なければ従来の立ち絵）
-    body = sprites.get("body_idle") or sprites.get(g.state, sprites["idle"])
-    screen.blit(body, body.get_rect(center=(cx, cy)))
+    vx = float(getattr(g, "vx_px_per_sec", 0.0))
+    walking = (abs(vx) > 0.01) and (not getattr(g, "lights_off", False)) and (getattr(g, "state", "idle") != "sleep")
+
+    # optional walk frames (keys: body_walk_0, body_walk_1, ...)
+    walk_keys = [k for k in sprites.keys() if k.startswith("body_walk_")]
+    def _walk_key_sort(k: str) -> int:
+        m = re.search(r"(\d+)$", k)
+        return int(m.group(1)) if m else 0
+    walk_keys.sort(key=_walk_key_sort)
+
+    if walking and walk_keys:
+        frame = int((now * float(getattr(cfg, "WALK_ANIM_FPS", 10.0))) % len(walk_keys))
+        body_src = sprites.get(walk_keys[frame], sprites.get("body_idle"))
+    else:
+        body_src = sprites.get("body_idle") or sprites.get(g.state, sprites["idle"])
+
+    # direction (flip) + bobbing (asset-free "walk feel")
+    flip_x = vx < 0
+    body = body_src
+    if body_src and flip_x:
+        key = (id(body_src), True, False)
+        body = _FLIP_CACHE.get(key)
+        if body is None:
+            body = pygame.transform.flip(body_src, True, False)
+            _FLIP_CACHE[key] = body
+
+    bob = 0
+    if walking:
+        bob_px = int(getattr(cfg, "WALK_BOB_PX", 2))
+        bob_hz = float(getattr(cfg, "WALK_BOB_HZ", 6.0))
+        bob = int(math.sin(now * bob_hz * math.tau) * bob_px)
+
+    screen.blit(body, body.get_rect(center=(cx, cy + bob)))
+
 
     # clothes overlay（衣装ごとのオフセット対応）
     oid = getattr(g, "outfit", "normal")
     clothes = sprites.get(f"clothes_{oid}") or sprites.get("clothes_normal")
     if clothes:
+<<<<<<< HEAD
         off = (0, 0)
         if isinstance(clothes_offsets, dict):
             off = clothes_offsets.get(oid) or clothes_offsets.get("normal") or (0, 0)
         ox, oy = off
         screen.blit(clothes, clothes.get_rect(center=(cx + int(ox), cy + int(oy))))
+=======
+        screen.blit(clothes, clothes.get_rect(center=(cx, cy + bob)))
+>>>>>>> 5787611010b0696915549e570110d2d891373808
 
     # face合成：ベース顔は常に描き、瞬き・口を上に重ねる
     expr = getattr(g, "expression", "normal")
     face_base = sprites.get(f"face_{expr}") or sprites.get("face_normal")
 
     if face_base:
-        screen.blit(face_base, face_base.get_rect(center=(cx, cy)))
+        screen.blit(face_base, face_base.get_rect(center=(cx, cy + bob)))
 
         # 瞬き（目だけ透過の画像）
         blink = sprites.get("face_blink")
         if blink:
+<<<<<<< HEAD
             # NOTE: "暗い"(lights_off) でも起きていることがあるため、
             # 目閉じを強制するのは「実際に寝ている時」だけ。
             if getattr(g, "sleep_stage", "awake") == "sleep" or getattr(g, "state", "") == "sleep":
                 screen.blit(blink, blink.get_rect(center=(cx, cy)))
+=======
+            # sleep中 / lights_off中は常に閉じ目
+            if getattr(g, "state", "") == "sleep" or getattr(g, "lights_off", False):
+                screen.blit(blink, blink.get_rect(center=(cx, cy + bob)))
+>>>>>>> 5787611010b0696915549e570110d2d891373808
             elif now < getattr(g, "blink_until", 0.0):
-                screen.blit(blink, blink.get_rect(center=(cx, cy)))
+                screen.blit(blink, blink.get_rect(center=(cx, cy + bob)))
 
         # 口パク（口だけ透過の画像）
         if getattr(g, "mouth_open", False):
             mouth = sprites.get("face_mouth")
             if mouth:
-                screen.blit(mouth, mouth.get_rect(center=(cx, cy)))
+                screen.blit(mouth, mouth.get_rect(center=(cx, cy + bob)))
 
     # ---- lights overlay ----
     if g.lights_off:

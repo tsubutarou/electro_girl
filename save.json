@@ -1,24 +1,31 @@
 {
-  "hunger": 99.9741000000002,
-  "mood": 100,
-  "sleepiness": 13.331605000018852,
-  "affection": 205,
+  "hunger": 96.42025000003055,
+  "mood": 99.98539000000042,
+  "sleepiness": 31.344040000059515,
+  "affection": 257,
   "lights_off": false,
-  "state": "music",
-  "state_until": 1770141860.9852622,
-  "line": "じゃ、見送ってあげる。…またね。",
-  "line_until": 1770141860.2905345,
-  "last_seen": 1770141858.2905345,
+  "sleep_stage": "awake",
+  "sleep_ready_at": 1770202465.7566166,
+  "sleep_stage_until": 0.0,
+  "state": "idle",
+  "state_until": 1770202432.1061635,
+  "line": "またね。続きはまた今度！",
+  "line_until": 1770202427.2085466,
+  "last_seen": 1770202425.2085466,
   "first_seen": 1770058101.8799431,
-  "bg_index": 5,
+  "bg_index": 1,
+  "bg_mode": "image",
+  "bg_image_id": "default",
   "sfx_muted": false,
   "sfx_scale": 1.0,
   "borderless": false,
-  "dock_bottom_right": true,
+  "dock_bottom_right": false,
+  "always_on_top": false,
   "unlocked_topics": [
     "t_intro",
     "t_snack",
-    "t_night"
+    "t_night",
+    "t_drawing"
   ],
   "flags": {},
   "journal": [
@@ -270,7 +277,8 @@
     }
   ],
   "new_topics": [
-    "t_night"
+    "t_night",
+    "t_drawing"
   ],
   "active_topic": "t_intro",
   "seq_index": 1,
@@ -279,10 +287,17 @@
   "pending_flag": "",
   "awaiting_choice": false,
   "last_auto_day": "",
-  "blink_until": 1770141857.6120775,
-  "next_blink": 1770141861.5028358,
+  "blink_until": 1770202421.5855088,
+  "next_blink": 1770202425.248154,
   "mouth_open": false,
-  "mouth_until": 1770141858.4195156,
+  "mouth_until": 1770202425.2235494,
   "expression": "normal",
-  "outfit": "alt"
+  "outfit": "alt",
+  "last_snack_id": "cookie",
+  "last_snack_at": 1770197086.458651,
+  "snack_count": 12,
+  "x_offset": 35.34199999999994,
+  "vx_px_per_sec": 0.0,
+  "walk_until": 1770202417.0811536,
+  "next_walk_at": 1770202454.2590964
 }
