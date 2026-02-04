@@ -11,7 +11,7 @@ import pygame
 from game import config as cfg
 from game.model import load_or_new, save
 from game.dialogue import Dialogue, greet_on_start, set_line
-from game.assets import load_sprites, load_sounds, load_clothes_offsets
+from game.assets import load_sprites, load_sounds, load_clothes_offsets, load_background_images, make_theme_thumbs
 from game.sim import (
     step_sim,
     pick_idle_state,
@@ -284,7 +284,20 @@ def main():
     pick_idle_state(g, dlg, now)
     greet_on_start(g, dlg, now)
 
-    btn_snack, btn_pet, btn_light, gear, talk, wardrobe, snack_menu = make_buttons()
+    btn_snack, btn_pet, btn_light, gear, talk, wardrobe, bg_menu, snack_menu = make_buttons()
+
+    # ---- background images (auto from assets/background) ----
+    bg_images, bg_image_thumbs = load_background_images(scale=1, thumb_size=(40, 40))
+    theme_thumbs = make_theme_thumbs(thumb_size=(40, 40))
+
+    bg_thumbs: dict[str, pygame.Surface] = {}
+    for name, t in theme_thumbs.items():
+        bg_thumbs[f"theme:{name}"] = t
+    for bid, t in bg_image_thumbs.items():
+        bg_thumbs[f"img:{bid}"] = t
+
+    bg_values = [f"theme:{t.get('name','theme')}" for t in (cfg.BG_THEMES or [])]
+    bg_values += [f"img:{bid}" for bid in bg_images.keys()]
 
     # 右クリックメニュー（簡易）
     ctx_open = False
@@ -318,6 +331,20 @@ def main():
             except Exception:
                 pass
             s.play()
+
+    def current_background():
+        """Return (bg_surface or None, label str)."""
+        mode = getattr(g, "bg_mode", "theme")
+        if mode == "image":
+            bid = getattr(g, "bg_image_id", "") or ""
+            if bid and bid in bg_images:
+                return bg_images[bid], bid
+        # theme fallback
+        try:
+            t = cfg.BG_THEMES[getattr(g, "bg_index", 0) % len(cfg.BG_THEMES)]
+            return None, str(t.get("name", "theme"))
+        except Exception:
+            return None, "theme"
     
 
     def request_quit(now_ts: float):
@@ -333,9 +360,11 @@ def main():
             for _e in pygame.event.get():
                 pass
             btns = [btn_snack, btn_pet, btn_light, talk.btn_talk, *gear.all_buttons_for_draw()]
+            bg_img, bg_lbl = current_background()
             draw_frame(
                 screen, font, font_small, sprites, g, btns, pygame.mouse.get_pos(),
-                gear=gear, talk=talk, wardrobe=wardrobe, snack_menu=snack_menu, journal_open=journal_open, journal_scroll=journal_scroll,
+                bg_image=bg_img, bg_label=bg_lbl,
+                gear=gear, talk=talk, wardrobe=wardrobe, bg_menu=bg_menu, snack_menu=snack_menu, journal_open=journal_open, journal_scroll=journal_scroll,
                 clothes_offsets=clothes_offsets,
                 debug_lines=None
             )
@@ -582,6 +611,8 @@ def main():
                     talk.close()
                 if wardrobe.open and (not wardrobe.hit_any(pos)):
                     wardrobe.close()
+                if bg_menu.open and (not bg_menu.hit_any(pos)):
+                    bg_menu.close()
                 if snack_menu.open and (not snack_menu.hit_any(pos)) and (not btn_snack.hit(pos)):
                     snack_menu.close()
 
@@ -597,10 +628,10 @@ def main():
                         gear.page_next()
                         continue
                     if gear.item_bg.hit(pos):
-                        cycle_bg(g, +1)
-                        set_line(g, now, "背景チェンジ。", (1.2, 2.0))
+                        bg_menu.toggle()
+                        if bg_menu.open:
+                            bg_menu.relayout(bg_values, bg_thumbs)
                         play_sfx("talk")
-                        save(g)
                         continue
 
                     if gear.item_frame.hit(pos):
@@ -682,6 +713,43 @@ def main():
                             play_sfx("talk")
                             save(g)
                             wardrobe.close()
+                            break
+
+                if bg_menu.open:
+                    if bg_menu.close_btn.hit(pos):
+                        bg_menu.close()
+                        continue
+                    if bg_menu.prev_btn.hit(pos):
+                        bg_menu.page = (bg_menu.page - 1) % max(1, bg_menu._max_pages)
+                        bg_menu.relayout(bg_values, bg_thumbs)
+                        continue
+                    if bg_menu.next_btn.hit(pos):
+                        bg_menu.page = (bg_menu.page + 1) % max(1, bg_menu._max_pages)
+                        bg_menu.relayout(bg_values, bg_thumbs)
+                        continue
+
+                    for it in bg_menu.items:
+                        if it.hit(pos):
+                            v = it.value
+                            if v.startswith("theme:"):
+                                name = v.split(":", 1)[1]
+                                # find theme index by name (fallback: 0)
+                                idx = 0
+                                for i, t in enumerate(cfg.BG_THEMES or []):
+                                    if str(t.get("name", "")) == name:
+                                        idx = i
+                                        break
+                                g.bg_mode = "theme"
+                                g.bg_index = idx
+                                set_line(g, now, f"背景：{name}", (1.0, 2.0))
+                            elif v.startswith("img:"):
+                                bid = v.split(":", 1)[1]
+                                g.bg_mode = "image"
+                                g.bg_image_id = bid
+                                set_line(g, now, f"背景：{bid}", (1.0, 2.0))
+                            play_sfx("talk")
+                            save(g)
+                            bg_menu.close()
                             break
 
                 if snack_menu.open:
@@ -871,6 +939,8 @@ def main():
             talk.relayout(cats, entries)
         if wardrobe.open:
             wardrobe.relayout(outfits, sprites)
+        if bg_menu.open:
+            bg_menu.relayout(bg_values, bg_thumbs)
         if snack_menu.open:
             snacks.load_if_needed()
             snack_menu.relayout([s.id for s in snacks.items], snacks.icons)
@@ -922,9 +992,22 @@ def main():
                 f"x_off:{getattr(g,'x_offset',0):.1f} vx:{getattr(g,'vx_px_per_sec',0):.1f}" if hasattr(g,'x_offset') or hasattr(g,'vx_px_per_sec') else None,
             ]
 
+        # decide current background
+        bg_image = None
+        bg_label = None
+        if getattr(g, "bg_mode", "theme") == "image":
+            bid = getattr(g, "bg_image_id", "") or ""
+            if bid and bid in bg_images:
+                bg_image = bg_images[bid]
+                bg_label = bid
+        if bg_label is None:
+            bg_label = (cfg.BG_THEMES[getattr(g, "bg_index", 0) % len(cfg.BG_THEMES)].get("name", "bg")
+                        if cfg.BG_THEMES else "bg")
+
         draw_frame(
             screen, font, font_small, sprites, g, btns, pygame.mouse.get_pos(),
-            gear=gear, talk=talk, wardrobe=wardrobe, snack_menu=snack_menu, journal_open=journal_open, journal_scroll=journal_scroll,
+            bg_image=bg_image, bg_label=bg_label,
+            gear=gear, talk=talk, wardrobe=wardrobe, bg_menu=bg_menu, snack_menu=snack_menu, journal_open=journal_open, journal_scroll=journal_scroll,
             clothes_offsets=clothes_offsets,
             debug_lines=debug_lines
         )

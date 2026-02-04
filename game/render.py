@@ -26,9 +26,12 @@ def draw_frame(
     g: Girl,
     btns,
     mouse_pos,
+    bg_image=None,
+    bg_label: str | None = None,
     gear=None,
     talk=None,
     wardrobe=None,
+    bg_menu=None,
     snack_menu=None,
     journal_open: bool = False,
     journal_scroll: int = 0,
@@ -39,14 +42,32 @@ def draw_frame(
     bg = cfg.BG_THEMES[g.bg_index % len(cfg.BG_THEMES)]["bg"] if cfg.BG_THEMES else (25, 25, 32)
     screen.fill(bg)
 
+    # image background (cover)
+    if bg_image is not None:
+        try:
+            iw, ih = bg_image.get_size()
+            if iw > 0 and ih > 0:
+                sw, sh = cfg.W, cfg.H
+                s = max(sw / iw, sh / ih)
+                nw = max(1, int(iw * s))
+                nh = max(1, int(ih * s))
+                scaled = pygame.transform.smoothscale(bg_image, (nw, nh))
+                x = (sw - nw) // 2
+                y = (sh - nh) // 2
+                screen.blit(scaled, (x, y))
+        except Exception:
+            pass
+
     # ---- header ----
     screen.blit(font.render("ELECTRO GIRL", True, (220, 220, 235)), (cfg.LEFT_X, 10))
     st = f"state:{g.state}  lights:{'OFF' if g.lights_off else 'ON'}"
     screen.blit(font_small.render(st, True, (180, 180, 200)), (cfg.LEFT_X, 32))
     screen.blit(font_small.render(status_text(g), True, (210, 210, 225)), (cfg.LEFT_X, 52))
 
-    theme_name = cfg.BG_THEMES[g.bg_index % len(cfg.BG_THEMES)]["name"] if cfg.BG_THEMES else "bg"
-    screen.blit(font_small.render(f"bg:{theme_name}", True, (170, 170, 190)), (cfg.LEFT_X, 70))
+    if bg_label is None:
+        theme_name = cfg.BG_THEMES[g.bg_index % len(cfg.BG_THEMES)]["name"] if cfg.BG_THEMES else "bg"
+        bg_label = theme_name
+    screen.blit(font_small.render(f"bg:{bg_label}", True, (170, 170, 190)), (cfg.LEFT_X, 70))
 
     # ---- character frame ----
     cx = cfg.RIGHT_X + cfg.RIGHT_PANEL_W // 2
@@ -155,6 +176,29 @@ def draw_frame(
                 hover=it.hit(mouse_pos),
                 selected=(getattr(g, "outfit", "normal") == getattr(it, "value", "")),
             )
+
+    # ---- background menu panel bg ----
+    if bg_menu is not None and getattr(bg_menu, "open", False):
+        pygame.draw.rect(screen, (35, 35, 46), bg_menu.panel, 0, 12)
+        pygame.draw.rect(screen, (120, 120, 140), bg_menu.panel, 2, 12)
+
+        bg_menu.close_btn.draw(screen, font_small, bg_menu.close_btn.hit(mouse_pos))
+        bg_menu.prev_btn.draw(screen, font_small, bg_menu.prev_btn.hit(mouse_pos))
+        bg_menu.next_btn.draw(screen, font_small, bg_menu.next_btn.hit(mouse_pos))
+
+        sel_mode = getattr(g, "bg_mode", "theme")
+        sel_val = ""
+        if sel_mode == "image":
+            sel_val = "img:" + (getattr(g, "bg_image_id", "") or "")
+        else:
+            # theme selection by index
+            try:
+                name = cfg.BG_THEMES[getattr(g, "bg_index", 0) % len(cfg.BG_THEMES)].get("name", "")
+                sel_val = "theme:" + str(name)
+            except Exception:
+                sel_val = ""
+        for it in getattr(bg_menu, "items", []):
+            it.draw(screen, font_small, hover=it.hit(mouse_pos), selected=(it.value == sel_val))
 
     # ---- snack panel bg ----
     if snack_menu is not None and getattr(snack_menu, "open", False):

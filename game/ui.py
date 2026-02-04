@@ -127,6 +127,82 @@ class WardrobeMenu:
         return False
 
 
+class BackgroundMenu:
+    """背景選択（画像 + 単色テーマ）"""
+    def __init__(self):
+        self.open = False
+        self.panel = pygame.Rect(0, 0, 0, 0)
+        self.close_btn = Button((0, 0, 0, 0), "X")
+        self.prev_btn = Button((0, 0, 0, 0), "<")
+        self.next_btn = Button((0, 0, 0, 0), ">")
+        self.page = 0
+        self.cols = 4
+        self.rows = 1
+        self.items: list[ThumbButton] = []
+        self.values: list[str] = []  # "theme:<name>" or "img:<id>"
+        self._max_pages = 1
+        self.relayout([], {})
+
+    def toggle(self):
+        self.open = not self.open
+
+    def close(self):
+        self.open = False
+
+    def relayout(self, values: list[str], thumbs: dict[str, pygame.Surface]):
+        # left side panel (avoid right panel)
+        w = cfg.RIGHT_X - 16
+        h = 120
+        x = 8
+        y = 52
+        self.panel = pygame.Rect(x, y, max(160, w), h)
+
+        self.close_btn.rect = pygame.Rect(self.panel.right - 26, self.panel.top + 8, 20, 18)
+        self.prev_btn.rect = pygame.Rect(self.panel.right - 56, self.panel.top + 32, 22, 18)
+        self.next_btn.rect = pygame.Rect(self.panel.right - 30, self.panel.top + 32, 22, 18)
+
+        vals = list(values) if values else []
+        vals = [v for v in vals if isinstance(v, str) and v]
+        self.values = vals
+
+        page_size = self.cols * self.rows
+        self._max_pages = max(1, (len(vals) + page_size - 1) // page_size)
+        self.page = max(0, min(self.page, self._max_pages - 1))
+
+        start = self.page * page_size
+        page_vals = vals[start:start + page_size]
+
+        pad_x = 12
+        pad_y = 46
+        cell_w = 64
+        cell_h = 64
+        gap_x = 8
+
+        self.items = []
+        for idx, v in enumerate(page_vals):
+            col = idx % self.cols
+            rx = self.panel.left + pad_x + col * (cell_w + gap_x)
+            ry = self.panel.top + pad_y
+            rect = pygame.Rect(rx, ry, cell_w, cell_h)
+
+            # label: shorten
+            label = v
+            if v.startswith("theme:"):
+                label = v.split(":", 1)[1]
+            elif v.startswith("img:"):
+                label = v.split(":", 1)[1]
+
+            thumb = thumbs.get(v)
+            self.items.append(ThumbButton(rect, label, v, thumb))
+
+    def hit_any(self, pos) -> bool:
+        if not self.open:
+            return False
+        if self.panel.collidepoint(pos):
+            return True
+        return False
+
+
 class SnackMenu:
     def __init__(self):
         self.open = False
@@ -471,5 +547,6 @@ def make_buttons():
     gear = GearMenu()
     talk = TalkMenu()
     wardrobe = WardrobeMenu()
+    bg_menu = BackgroundMenu()
     snack_menu = SnackMenu()
-    return btn_snack, btn_pet, btn_light, gear, talk, wardrobe, snack_menu
+    return btn_snack, btn_pet, btn_light, gear, talk, wardrobe, bg_menu, snack_menu

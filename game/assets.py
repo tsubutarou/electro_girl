@@ -150,3 +150,87 @@ def load_sounds(mixer_ok: bool) -> dict[str, object]:
         if v:
             v.set_volume(0.30 if k in ("pet", "talk") else 0.35)
     return sounds
+
+
+def list_background_image_ids() -> list[str]:
+    """assets/background 内の画像ファイルを自動検出して id(拡張子なし) を返す。
+
+    対象: png/jpg/jpeg/webp/bmp
+    """
+    assets_root = os.path.dirname(cfg.IMG_DIR)
+    bg_dir = os.path.join(assets_root, "background")
+    if not os.path.isdir(bg_dir):
+        return []
+
+    exts = {".png", ".jpg", ".jpeg", ".webp", ".bmp"}
+    ids: list[str] = []
+    for fn in os.listdir(bg_dir):
+        ext = os.path.splitext(fn)[1].lower()
+        if ext in exts:
+            ids.append(os.path.splitext(fn)[0])
+    # "default" を先頭に（あれば）
+    ids = sorted(set(ids))
+    if "default" in ids:
+        ids.remove("default")
+        ids.insert(0, "default")
+    return ids
+
+
+def load_background_images(scale: int = 1, thumb_size: tuple[int, int] = (40, 40)) -> tuple[dict[str, pygame.Surface], dict[str, pygame.Surface]]:
+    """背景画像を読み込み、(images, thumbs) を返す。
+
+    - images: id -> pygame.Surface (convert)
+    - thumbs: id -> pygame.Surface (smoothscale)
+
+    ※ 背景は基本「写真/イラスト」想定なので smoothscale を使う。
+    """
+    assets_root = os.path.dirname(cfg.IMG_DIR)
+    bg_dir = os.path.join(assets_root, "background")
+    if not os.path.isdir(bg_dir):
+        return {}, {}
+
+    exts = [".png", ".jpg", ".jpeg", ".webp", ".bmp"]
+
+    images: dict[str, pygame.Surface] = {}
+    thumbs: dict[str, pygame.Surface] = {}
+
+    for bid in list_background_image_ids():
+        path = None
+        for ext in exts:
+            p = os.path.join(bg_dir, bid + ext)
+            if os.path.exists(p):
+                path = p
+                break
+        if not path:
+            continue
+        try:
+            img = pygame.image.load(path).convert()  # 背景はα無しでOK
+            if scale and scale != 1:
+                w, h = img.get_size()
+                img = pygame.transform.smoothscale(img, (max(1, int(w * scale)), max(1, int(h * scale))))
+            images[bid] = img
+
+            tw, th = thumb_size
+            w0, h0 = img.get_size()
+            if w0 > 0 and h0 > 0:
+                s = min(tw / w0, th / h0)
+                nw = max(1, int(w0 * s))
+                nh = max(1, int(h0 * s))
+                thumbs[bid] = pygame.transform.smoothscale(img, (nw, nh))
+        except Exception:
+            pass
+
+    return images, thumbs
+
+
+def make_theme_thumbs(thumb_size: tuple[int, int] = (40, 40)) -> dict[str, pygame.Surface]:
+    """cfg.BG_THEMES の単色背景用サムネを作る。 key は theme name。"""
+    tw, th = thumb_size
+    out: dict[str, pygame.Surface] = {}
+    for t in (cfg.BG_THEMES or []):
+        name = str(t.get("name", "theme"))
+        col = t.get("bg", (25, 25, 32))
+        surf = pygame.Surface((tw, th))
+        surf.fill(col)
+        out[name] = surf
+    return out

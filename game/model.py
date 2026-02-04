@@ -29,6 +29,11 @@ class Girl:
 
     bg_index: int = 0
 
+    # background selection
+    # bg_mode: "theme" uses bg_index + cfg.BG_THEMES; "image" uses bg_image_id.
+    bg_mode: str = "theme"
+    bg_image_id: str = ""
+
     sfx_muted: bool = False
     sfx_scale: float = 1.0
 
