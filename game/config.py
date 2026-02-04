@@ -56,8 +56,13 @@ SFX_BASE_VOLUME = {
 
 # X movement (right panel wandering)
 WALK_SPEED_PX_PER_SEC = 22.0
-WALK_MIN_SEC = 1.6
-WALK_MAX_SEC = 3.4
-WALK_REST_MIN_SEC = 2.0
-WALK_REST_MAX_SEC = 5.5
+WALK_MIN_SEC = 2.0
+WALK_MAX_SEC = 3.5
+WALK_REST_MIN_SEC = 8.0
+WALK_REST_MAX_SEC = 15.0
 WALK_MARGIN_PX = 10  # keep within right panel
+
+# Walk animation (optional frames: assets/sprite/body_walk_0.png ...)
+WALK_ANIM_FPS = 10.0
+WALK_BOB_PX = 2
+WALK_BOB_HZ = 2.0
