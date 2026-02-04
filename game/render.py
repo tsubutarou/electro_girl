@@ -32,6 +32,7 @@ def draw_frame(
     snack_menu=None,
     journal_open: bool = False,
     journal_scroll: int = 0,
+    clothes_offsets=None,
     debug_lines=None,
 ):
     # ---- background ----
@@ -64,11 +65,15 @@ def draw_frame(
     body = sprites.get("body_idle") or sprites.get(g.state, sprites["idle"])
     screen.blit(body, body.get_rect(center=(cx, cy)))
 
-    # clothes overlay
+    # clothes overlay（衣装ごとのオフセット対応）
     oid = getattr(g, "outfit", "normal")
     clothes = sprites.get(f"clothes_{oid}") or sprites.get("clothes_normal")
     if clothes:
-        screen.blit(clothes, clothes.get_rect(center=(cx, cy)))
+        off = (0, 0)
+        if isinstance(clothes_offsets, dict):
+            off = clothes_offsets.get(oid) or clothes_offsets.get("normal") or (0, 0)
+        ox, oy = off
+        screen.blit(clothes, clothes.get_rect(center=(cx + int(ox), cy + int(oy))))
 
     # face合成：ベース顔は常に描き、瞬き・口を上に重ねる
     expr = getattr(g, "expression", "normal")

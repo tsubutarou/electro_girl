@@ -11,7 +11,7 @@ import pygame
 from game import config as cfg
 from game.model import load_or_new, save
 from game.dialogue import Dialogue, greet_on_start, set_line
-from game.assets import load_sprites, load_sounds
+from game.assets import load_sprites, load_sounds, load_clothes_offsets
 from game.sim import (
     step_sim,
     pick_idle_state,
@@ -257,7 +257,9 @@ def main():
 
     # --- assets ---
     # ※瞬き口パク用の face スプライトも load_sprites 側で読む（後述の差分を適用）
-    sprites = load_sprites(scale=3)
+    scale = 3
+    sprites = load_sprites(scale=scale)
+    clothes_offsets = load_clothes_offsets(scale=scale)
     sounds = load_sounds(mixer_ok)
 
     dlg = Dialogue(cfg.DLG_PATH)
@@ -334,6 +336,7 @@ def main():
             draw_frame(
                 screen, font, font_small, sprites, g, btns, pygame.mouse.get_pos(),
                 gear=gear, talk=talk, wardrobe=wardrobe, snack_menu=snack_menu, journal_open=journal_open, journal_scroll=journal_scroll,
+                clothes_offsets=clothes_offsets,
                 debug_lines=None
             )
             # context menu is ignored during exit animation
@@ -922,6 +925,7 @@ def main():
         draw_frame(
             screen, font, font_small, sprites, g, btns, pygame.mouse.get_pos(),
             gear=gear, talk=talk, wardrobe=wardrobe, snack_menu=snack_menu, journal_open=journal_open, journal_scroll=journal_scroll,
+            clothes_offsets=clothes_offsets,
             debug_lines=debug_lines
         )
 

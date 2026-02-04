@@ -1,6 +1,7 @@
 from __future__ import annotations
 import os
 import re
+import json
 import pygame
 
 from . import config as cfg
@@ -92,6 +93,47 @@ def load_sprites(scale: int = 3) -> dict[str, pygame.Surface]:
         sprites_raw["face_mouth"] = load_image(mouth_p)
 
     return {k: scale_nearest(v, scale) for k, v in sprites_raw.items()}
+
+
+def load_clothes_offsets(scale: int = 3) -> dict[str, tuple[int, int]]:
+    """衣装(clothes_*)の描画オフセットをJSONから読む。
+
+    置き場所: assets/sprite/clothes/offsets.json
+
+    形式(どちらでもOK):
+      {"normal": [0, 0], "alt": [1, -2]}
+      {"normal": {"x": 0, "y": 0}, "alt": {"x": 1, "y": -2}}
+
+    数値は「元画像(スケール前)のピクセル」を想定し、ここで scale 倍する。
+    """
+    # assets_root は assets/img の1つ上（= assets）
+    assets_root = os.path.dirname(cfg.IMG_DIR)
+    path = os.path.join(assets_root, "sprite", "clothes", "offsets.json")
+    if not os.path.exists(path):
+        return {}
+
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            raw = json.load(f)
+    except Exception:
+        return {}
+
+    out: dict[str, tuple[int, int]] = {}
+    if not isinstance(raw, dict):
+        return out
+
+    for oid, v in raw.items():
+        dx = dy = 0
+        try:
+            if isinstance(v, (list, tuple)) and len(v) >= 2:
+                dx, dy = int(v[0]), int(v[1])
+            elif isinstance(v, dict):
+                dx = int(v.get("x", 0))
+                dy = int(v.get("y", 0))
+        except Exception:
+            dx = dy = 0
+        out[str(oid)] = (dx * scale, dy * scale)
+    return out
 
 
 def load_sounds(mixer_ok: bool) -> dict[str, object]:
