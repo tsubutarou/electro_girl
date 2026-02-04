@@ -3,19 +3,10 @@ import os
 import re
 import json
 import pygame
+from .image_utils import load_image, scale_nearest
+from .atlas import load_atlas_sprites
 
 from . import config as cfg
-
-
-def load_image(path: str) -> pygame.Surface:
-    """画像を読み込んで convert_alpha して返す"""
-    return pygame.image.load(path).convert_alpha()
-
-
-def scale_nearest(img: pygame.Surface, scale: int) -> pygame.Surface:
-    """ドット絵向け：ニアレストで整数倍拡大"""
-    w, h = img.get_size()
-    return pygame.transform.scale(img, (w * scale, h * scale))
 
 
 def safe_sound(path: str):
@@ -27,45 +18,6 @@ def safe_sound(path: str):
     return None
 
 
-
-def load_atlas_sprites(assets_root: str) -> dict[str, pygame.Surface]:
-    """アトラス方式（atlas.png + atlas_map.json）からスプライトを切り出す。
-
-    置き場所（v0.1）:
-      assets/sprite/atlas.png
-      assets/sprite/atlas_map.json
-
-    atlas_map.json の slots には以下のような形式でタイル座標が入る:
-      "body_idle": {"col": 0, "row": 0}
-
-    ここで返す辞書キーは slots のキー名をそのまま使う。
-    """
-    atlas_png = os.path.join(assets_root, "sprite", "atlas.png")
-    atlas_map = os.path.join(assets_root, "sprite", "atlas_map.json")
-    if not (os.path.exists(atlas_png) and os.path.exists(atlas_map)):
-        return {}
-
-    try:
-        with open(atlas_map, "r", encoding="utf-8") as f:
-            m = json.load(f)
-        tile_w, tile_h = m.get("tile_size", [64, 64])
-        slots = m.get("slots", {})
-        atlas = load_image(atlas_png)
-    except Exception:
-        return {}
-
-    out: dict[str, pygame.Surface] = {}
-    for name, pos in slots.items():
-        try:
-            col = int(pos.get("col"))
-            row = int(pos.get("row"))
-            rect = pygame.Rect(col * tile_w, row * tile_h, tile_w, tile_h)
-            surf = pygame.Surface((tile_w, tile_h), pygame.SRCALPHA)
-            surf.blit(atlas, (0, 0), rect)
-            out[name] = surf
-        except Exception:
-            continue
-    return out
 
 def load_sprites(scale: int = 3) -> dict[str, pygame.Surface]:
     """スプライト読み込み（atlas優先 / 分割PNGフォールバック）。
