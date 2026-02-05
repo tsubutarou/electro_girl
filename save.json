@@ -1,17 +1,17 @@
 {
-  "hunger": 87.66898000030424,
-  "mood": 95.50395000001917,
-  "sleepiness": 41.88584500011123,
+  "hunger": 85.82498000031782,
+  "mood": 88.09194000004686,
+  "sleepiness": 43.77217500011195,
   "affection": 259,
   "lights_off": false,
   "sleep_stage": "awake",
   "sleep_ready_at": 1770223689.0523546,
   "sleep_stage_until": 0.0,
-  "state": "idle",
-  "state_until": 1770249318.7886546,
-  "line": "またね。続きはまた今度！",
-  "line_until": 1770249318.9447927,
-  "last_seen": 1770249316.9447927,
+  "state": "music",
+  "state_until": 1770308758.6958747,
+  "line": "♪ いま脳内BGMこれ。",
+  "line_until": 1770308758.376433,
+  "last_seen": 1770276377.9475722,
   "first_seen": 1770058101.8799431,
   "bg_index": 1,
   "bg_mode": "theme",
@@ -25,8 +25,7 @@
     "t_intro",
     "t_snack",
     "t_night",
-    "t_drawing",
-    "auto_morning"
+    "t_drawing"
   ],
   "flags": {},
   "journal": [
@@ -279,8 +278,7 @@
   ],
   "new_topics": [
     "t_night",
-    "t_drawing",
-    "auto_morning"
+    "t_drawing"
   ],
   "active_topic": "t_intro",
   "seq_index": 1,
@@ -289,17 +287,17 @@
   "pending_flag": "",
   "awaiting_choice": false,
   "last_auto_day": "",
-  "blink_until": 1770249314.2830503,
-  "next_blink": 1770249317.4623652,
-  "mouth_open": true,
-  "mouth_until": 1770249317.0573852,
+  "blink_until": 1770308754.085029,
+  "next_blink": 1770308759.743711,
+  "mouth_open": false,
+  "mouth_until": 1770308757.1756802,
   "expression": "normal",
-  "outfit": "sleep",
+  "outfit": "normal",
   "last_snack_id": "candy",
   "last_snack_at": 1770223651.2053165,
   "snack_count": 14,
-  "x_offset": -19.52600000000002,
+  "x_offset": -7.734000000000026,
   "vx_px_per_sec": 0.0,
-  "walk_until": 1770224206.3436592,
-  "next_walk_at": 1770249346.1562548
+  "walk_until": 1770308730.6865804,
+  "next_walk_at": 1770308786.6200414
 }

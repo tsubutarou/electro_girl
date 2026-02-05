@@ -312,7 +312,7 @@ def main():
     pick_idle_state(g, dlg, now)
     greet_on_start(g, dlg, now)
 
-    btn_snack, btn_pet, btn_light, btn_char, gear, talk, wardrobe, bg_menu, snack_menu = make_buttons()
+    btn_snack, btn_pet, btn_light, gear, talk, wardrobe, bg_menu, snack_menu = make_buttons()
 
     # ---- background images (auto from assets/background) ----
     bg_images, bg_image_thumbs = load_background_images(scale=1, thumb_size=(40, 40))
@@ -387,7 +387,7 @@ def main():
         while time.time() < end_at:
             for _e in pygame.event.get():
                 pass
-            btns = [btn_snack, btn_pet, btn_light, talk.btn_talk, btn_char, *gear.all_buttons_for_draw()]
+            btns = [btn_snack, btn_pet, btn_light, talk.btn_talk, *gear.all_buttons_for_draw()]
             bg_img, bg_lbl = current_background()
             draw_frame(
                 screen, font, font_small, sprites, g, btns, pygame.mouse.get_pos(),
@@ -659,12 +659,77 @@ def main():
                 if snack_menu.open and (not snack_menu.hit_any(pos)) and (not btn_snack.hit(pos)):
                     snack_menu.close()
 
-                if btn_char.hit(pos):
-                    wardrobe.toggle()
-                    if wardrobe.open:
-                        wardrobe.relayout(outfits, sprites)
-                    play_sfx("talk")
-                    continue
+                # ---- unified custom menu (🎨 / ✨ / 👗) ----
+                # Buttons/rects are drawn & stored on g by game.custom_menu.draw_top_buttons.
+                btns_custom = getattr(g, "_custom_btns", None) or {}
+                if btns_custom:
+                    if btns_custom.get("custom") and btns_custom["custom"].collidepoint(pos):
+                        g.ui_mode = "main" if getattr(g, "ui_mode", "main") == "custom" else "custom"
+                        # Close legacy menus when custom opens
+                        if getattr(g, "ui_mode", "main") == "custom":
+                            try:
+                                gear.close(); talk.close(); wardrobe.close(); bg_menu.close(); snack_menu.close()
+                            except Exception:
+                                pass
+                        play_sfx("talk")
+                        continue
+
+                    if btns_custom.get("bg") and btns_custom["bg"].collidepoint(pos):
+                        g.ui_mode = "custom"
+                        g.custom_tab = "bg"
+                        try:
+                            gear.close(); talk.close(); wardrobe.close(); bg_menu.close(); snack_menu.close()
+                        except Exception:
+                            pass
+                        play_sfx("talk")
+                        continue
+
+                    if btns_custom.get("clothes") and btns_custom["clothes"].collidepoint(pos):
+                        g.ui_mode = "custom"
+                        g.custom_tab = "clothes"
+                        try:
+                            gear.close(); talk.close(); wardrobe.close(); bg_menu.close(); snack_menu.close()
+                        except Exception:
+                            pass
+                        play_sfx("talk")
+                        continue
+
+                # Item click inside custom menu
+                if getattr(g, "ui_mode", "main") == "custom":
+                    _picked = False
+                    for (kind, key), r in (getattr(g, "_custom_item_rects", []) or []):
+                        if not r.collidepoint(pos):
+                            continue
+
+                        if kind == "clothes":
+                            g.outfit = key
+                            save(g)
+                            play_sfx("talk")
+                            _picked = True
+                            break
+
+                        if kind == "bg":
+                            # key format: "theme:<name>" or "img:<id>"
+                            if isinstance(key, str) and key.startswith("img:"):
+                                g.bg_mode = "image"
+                                g.bg_image_id = key.split(":", 1)[1]
+                            elif isinstance(key, str) and key.startswith("theme:"):
+                                tname = key.split(":", 1)[1]
+                                g.bg_mode = "theme"
+                                # Map name -> index (fallback: keep current)
+                                try:
+                                    idx = next((i for i, t in enumerate(cfg.BG_THEMES or []) if str(t.get("name", "")) == tname), None)
+                                    if idx is not None:
+                                        g.bg_index = int(idx)
+                                except Exception:
+                                    pass
+                            save(g)
+                            play_sfx("talk")
+                            _picked = True
+                            break
+
+                    if _picked:
+                        continue
 
                 if gear.btn_gear.hit(pos):
                     gear.toggle()
@@ -1129,7 +1194,7 @@ def main():
         # wardrobe outfits list (auto from loaded sprites)
         outfits = sorted({k[len("clothes_"):] for k in sprites.keys() if k.startswith("clothes_")})
         # relayout is handled above when wardrobe.open is True
-        btns = [btn_snack, btn_pet, btn_light, talk.btn_talk, btn_char, *gear.all_buttons_for_draw()]
+        btns = [btn_snack, btn_pet, btn_light, talk.btn_talk, *gear.all_buttons_for_draw()]
         # wardrobe buttons are drawn inside draw_frame, but keep hover calc independent
         debug_lines = None
         if debug_hud:

@@ -1,12 +1,39 @@
 from __future__ import annotations
 
-from .ui_bubble import wrap_text_to_lines, paginate_lines
+from .custom_menu import draw_top_buttons, draw_custom_menu
 import pygame
 import time
 import math
 import re
 
 
+def _wrap_text_to_lines(text: str, font: pygame.font.Font, max_w: int) -> list[str]:
+    """Wrap text into multiple lines so each rendered line fits within max_w.
+    Newlines force line breaks. Japanese is wrapped per-character (safe default).
+    """
+    if not text:
+        return [""]
+    out: list[str] = []
+    for para in text.split("\n"):
+        if para == "":
+            out.append("")
+            continue
+        cur = ""
+        for ch in para:
+            test = cur + ch
+            if font.size(test)[0] <= max_w or cur == "":
+                cur = test
+            else:
+                out.append(cur)
+                cur = ch
+        if cur:
+            out.append(cur)
+    return out
+
+def _paginate_lines(lines: list[str], max_lines: int) -> list[list[str]]:
+    if max_lines <= 0:
+        return [lines]
+    return [lines[i:i+max_lines] for i in range(0, len(lines), max_lines)]
 from .model import Girl
 from . import config as cfg
 
@@ -75,6 +102,8 @@ def draw_frame(
         theme_name = cfg.BG_THEMES[g.bg_index % len(cfg.BG_THEMES)]["name"] if cfg.BG_THEMES else "bg"
         bg_label = theme_name
     screen.blit(font_small.render(f"bg:{bg_label}", True, (170, 170, 190)), (cfg.LEFT_X, 70))
+    # ---- custom unified menu top buttons ----
+    draw_top_buttons(screen, font_small, g, cfg)
 
     # ---- character frame ----
     cx = cfg.RIGHT_X + cfg.RIGHT_PANEL_W // 2
@@ -304,8 +333,8 @@ def draw_frame(
         max_lines = int(getattr(cfg, "BUBBLE_MAX_LINES", 3))
         page_i = int(getattr(g, "line_page", 0))
 
-        wrapped = wrap_text_to_lines(line_txt, font_small, inner_w)
-        pages = paginate_lines(wrapped, max_lines)
+        wrapped = _wrap_text_to_lines(line_txt, font_small, inner_w)
+        pages = _paginate_lines(wrapped, max_lines)
         if page_i >= len(pages):
             page_i = max(0, len(pages) - 1)
             g.line_page = page_i
@@ -349,6 +378,14 @@ def draw_frame(
         setattr(g, "_bubble_pages", 0)
 
     # ---- debug HUD
+    # ---- custom unified menu ----
+    try:
+        bg_thumbs = getattr(g, '_custom_bg_thumbs', {}) or {}
+        clothes_ids = list(getattr(g, 'clothes_offsets', {}).keys()) if hasattr(g, 'clothes_offsets') else ['normal','alt']
+    except Exception:
+        bg_thumbs = {}
+        clothes_ids = ['normal','alt']
+    draw_custom_menu(screen, g, cfg, font_small, font_small, bg_thumbs, clothes_ids)
         # ---- debug HUD (F1) ----
     if debug_lines:
         pad = 6

@@ -561,14 +561,11 @@ def make_buttons():
     # move TALK to bottom-left row (after LIGHTS)
     talk.btn_talk.rect = pygame.Rect(cfg.LEFT_X + (btn_w + gap) * 3, y_bottom, 56, btn_h)
 
-    # ---- top-right: CHAR, ⚙(gear) ----
-    # right aligned, order: [CHAR][⚙]
+    # ---- top-right: ⚙(gear) ----
+    # NOTE: legacy CHAR button is removed (custom menu handles clothes/bg).
     top_y = 8
     gear.btn_gear.rect = pygame.Rect(cfg.W - 34, top_y, 26, 22)
-    char_w, char_h = 54, 22
-    char_x = gear.btn_gear.rect.left - gap - char_w
-    btn_char = Button((char_x, top_y, char_w, char_h), "CHAR")
     # relayout settings panel based on updated gear button rect
     gear.relayout()
 
-    return btn_snack, btn_pet, btn_light, btn_char, gear, talk, wardrobe, bg_menu, snack_menu
+    return btn_snack, btn_pet, btn_light, gear, talk, wardrobe, bg_menu, snack_menu

@@ -118,3 +118,22 @@ BUBBLE_MAX_LINES = 3          # 1ページに表示する最大行数
 BUBBLE_PADDING_X = 8
 BUBBLE_PADDING_Y = 6
 BUBBLE_LINE_GAP = 2           # 行間の追加ピクセル
+
+
+# --- Custom unified menu (v0.1) ---
+CUSTOM_MENU_BTN_Y = 48
+CUSTOM_MENU_BTN_SIZE = 30
+CUSTOM_MENU_BTN_GAP = 6
+CUSTOM_MENU_PANEL_Y = 90
+THUMB_W = 120
+THUMB_H = 80
+THUMB_FRAME = 2
+THUMB_RADIUS = 10
+THUMB_NAME_HEIGHT = 18
+THUMB_GAP = 14
+
+# --- Custom menu placement ---
+CUSTOM_MENU_REPLACE_CHAR = True
+CUSTOM_MENU_BTN_SIZE = 28
+CUSTOM_MENU_BTN_GAP = 6
+CUSTOM_MENU_BTN_Y = 10  # fallback (normally anchored to CHAR)

@@ -3,10 +3,19 @@ import os
 import re
 import json
 import pygame
-from .image_utils import load_image, scale_nearest
-from .atlas import load_atlas_sprites
 
 from . import config as cfg
+
+
+def load_image(path: str) -> pygame.Surface:
+    """画像を読み込んで convert_alpha して返す"""
+    return pygame.image.load(path).convert_alpha()
+
+
+def scale_nearest(img: pygame.Surface, scale: int) -> pygame.Surface:
+    """ドット絵向け：ニアレストで整数倍拡大"""
+    w, h = img.get_size()
+    return pygame.transform.scale(img, (w * scale, h * scale))
 
 
 def safe_sound(path: str):
@@ -19,69 +28,117 @@ def safe_sound(path: str):
 
 
 
-def load_sprites(scale: int = 3) -> dict[str, pygame.Surface]:
-    """スプライト読み込み（atlas優先 / 分割PNGフォールバック）。
+def load_atlas_sprites(assets_root: str) -> dict[str, pygame.Surface]:
+    """アトラス方式（atlas.png + atlas_map.json）からスプライトを切り出す。
 
-    - 旧: assets/img/girl_*.png を参照していた名残があるが、v0.xでは使わない。
-    - 新: assets/sprite/atlas.png + atlas_map.json があればそれを優先する。
-    - 無ければ assets/sprite/ 以下の分割PNGを読む。
+    置き場所（v0.1）:
+      assets/sprite/atlas.png
+      assets/sprite/atlas_map.json
+
+    atlas_map.json の slots には以下のような形式でタイル座標が入る:
+      "body_idle": {"col": 0, "row": 0}
+
+    ここで返す辞書キーは slots のキー名をそのまま使う。
     """
-    assets_root = os.path.dirname(cfg.IMG_DIR)
-    sprite_dir = os.path.join(assets_root, "sprite")
+    atlas_png = os.path.join(assets_root, "sprite", "atlas.png")
+    atlas_map = os.path.join(assets_root, "sprite", "atlas_map.json")
+    if not (os.path.exists(atlas_png) and os.path.exists(atlas_map)):
+        return {}
 
-    def safe_surface(w: int = 64, h: int = 64) -> pygame.Surface:
-        return pygame.Surface((w, h), pygame.SRCALPHA)
-
-    def safe_load(path: str) -> pygame.Surface | None:
-        try:
-            if os.path.exists(path):
-                return load_image(path)
-        except Exception:
-            return None
-        return None
-
-    sprites_raw: dict[str, pygame.Surface] = {}
-
-    # 1) atlas（あれば優先）
     try:
-        atlas = load_atlas_sprites(assets_root)
-        if atlas:
-            sprites_raw.update(atlas)
+        with open(atlas_map, "r", encoding="utf-8") as f:
+            m = json.load(f)
+        tile_w, tile_h = m.get("tile_size", [64, 64])
+        slots = m.get("slots", {})
+        atlas = load_image(atlas_png)
     except Exception:
-        pass
+        return {}
 
-    # 2) 分割PNG（不足分だけ補完）
-    sprites_raw.setdefault("body_idle", safe_load(os.path.join(sprite_dir, "body_idle.png")) or safe_surface())
-    for i in range(3):
-        k = f"body_walk_{i}"
-        sprites_raw.setdefault(k, safe_load(os.path.join(sprite_dir, f"body_walk_{i}.png")) or sprites_raw["body_idle"])
-    sprites_raw.setdefault("body_sleep", safe_load(os.path.join(sprite_dir, "body_sleep.png")) or sprites_raw["body_idle"])
-    sprites_raw.setdefault("body_drowsy", safe_load(os.path.join(sprite_dir, "body_drowsy.png")) or sprites_raw["body_idle"])
+    out: dict[str, pygame.Surface] = {}
+    for name, pos in slots.items():
+        try:
+            col = int(pos.get("col"))
+            row = int(pos.get("row"))
+            rect = pygame.Rect(col * tile_w, row * tile_h, tile_w, tile_h)
+            surf = pygame.Surface((tile_w, tile_h), pygame.SRCALPHA)
+            surf.blit(atlas, (0, 0), rect)
+            out[name] = surf
+        except Exception:
+            continue
+    return out
 
-    sprites_raw.setdefault("clothes_normal", safe_load(os.path.join(sprite_dir, "clothes", "normal.png")) or safe_surface())
-    sprites_raw.setdefault("clothes_alt", safe_load(os.path.join(sprite_dir, "clothes", "alt.png")) or sprites_raw["clothes_normal"])
+def load_sprites(scale: int = 3) -> dict[str, pygame.Surface]:
+    """
+    既存：状態別の立ち絵（idle/sleep/music/grumpy）
+    追加：瞬き/口パク用の body/face（存在しなければロードしない）
+    追加：表情差分 face_{normal/smile/trouble}（存在しなければロードしない）
+    """
+    sprites_raw: dict[str, pygame.Surface] = {
+        "idle":   load_image(os.path.join(cfg.IMG_DIR, "girl_idle.png")),
+        "sleep":  load_image(os.path.join(cfg.IMG_DIR, "girl_sleep.png")),
+        "music":  load_image(os.path.join(cfg.IMG_DIR, "girl_music.png")),
+        "grumpy": load_image(os.path.join(cfg.IMG_DIR, "girl_grumpy.png")),
+    }
 
-    sprites_raw.setdefault("face_normal", safe_load(os.path.join(sprite_dir, "face", "normal.png")) or safe_surface())
-    sprites_raw.setdefault("face_smile", safe_load(os.path.join(sprite_dir, "face", "smile.png")) or sprites_raw["face_normal"])
-    sprites_raw.setdefault("face_trouble", safe_load(os.path.join(sprite_dir, "face", "trouble.png")) or sprites_raw["face_normal"])
-    sprites_raw.setdefault("face_blink", safe_load(os.path.join(sprite_dir, "face", "blink.png")) or safe_surface())
-    sprites_raw.setdefault("face_mouth", safe_load(os.path.join(sprite_dir, "face", "mouth.png")) or safe_surface())
+    # assets_root は assets/img の1つ上（= assets）
+    assets_root = os.path.dirname(cfg.IMG_DIR)
 
-    # 3) 旧キー互換（古い描画コードが参照しても落ちないように）
-    sprites_raw.setdefault("idle", sprites_raw["body_idle"])
-    sprites_raw.setdefault("sleep", sprites_raw["body_sleep"])
-    sprites_raw.setdefault("talk", sprites_raw["body_idle"])
+    # ---- atlas (optional) ----
+    # atlas があればまず切り出して埋める（不足分は従来の分割PNGで補完する）
+    atlas_sprites_raw = load_atlas_sprites(assets_root)
+    sprites_raw.update(atlas_sprites_raw)
 
-    # 4) スケール（整数倍、ニアレスト）
-    if scale and scale != 1:
-        out: dict[str, pygame.Surface] = {}
-        for k, s in sprites_raw.items():
+    # ---- body ----
+    body_path = os.path.join(assets_root, "sprite", "body_idle.png")
+    if os.path.exists(body_path):
+        sprites_raw["body_idle"] = load_image(body_path)
+
+    # ---- body walk frames (optional) ----
+    # Put files like assets/sprite/body_walk_0.png, body_walk_1.png ...
+    walk_re = re.compile(r"^body_walk_(\d+)\.png$", re.IGNORECASE)
+    sprite_dir = os.path.join(assets_root, "sprite")
+    if os.path.isdir(sprite_dir):
+        walk_files = []
+        for fn in os.listdir(sprite_dir):
+            m2 = walk_re.match(fn)
+            if m2:
+                walk_files.append((int(m2.group(1)), fn))
+        for idx, fn in sorted(walk_files, key=lambda t: t[0]):
+            p = os.path.join(sprite_dir, fn)
             try:
-                out[k] = scale_nearest(s, scale)
+                sprites_raw[f"body_walk_{idx}"] = load_image(p)
             except Exception:
-                out[k] = s
-        return out
-    return sprites_raw
+                pass
+
+    # ---- face base expressions ----
+    for name in ("normal", "smile", "trouble"):
+        p = os.path.join(assets_root, "sprite", "face", f"{name}.png")
+        if os.path.exists(p):
+            sprites_raw[f"face_{name}"] = load_image(p)
+
+
+    # ---- clothes ----
+    clothes_dir = os.path.join(assets_root, "sprite", "clothes")
+    if os.path.isdir(clothes_dir):
+        for fn in os.listdir(clothes_dir):
+            if not fn.lower().endswith(".png"):
+                continue
+            oid = os.path.splitext(fn)[0]
+            try:
+                sprites_raw[f"clothes_{oid}"] = load_image(os.path.join(clothes_dir, fn))
+            except Exception:
+                pass
+
+    # ---- overlays ----
+    blink_p = os.path.join(assets_root, "sprite", "face", "blink.png")
+    mouth_p = os.path.join(assets_root, "sprite", "face", "mouth.png")
+    if os.path.exists(blink_p):
+        sprites_raw["face_blink"] = load_image(blink_p)
+    if os.path.exists(mouth_p):
+        sprites_raw["face_mouth"] = load_image(mouth_p)
+
+    return {k: scale_nearest(v, scale) for k, v in sprites_raw.items()}
+
 
 def load_clothes_offsets(scale: int = 3) -> dict[str, tuple[int, int]]:
     """衣装(clothes_*)の描画オフセットをJSONから読む。
