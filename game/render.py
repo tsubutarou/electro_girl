@@ -124,7 +124,17 @@ def draw_frame(
     now = time.time()
     vx = float(getattr(g, "vx_px_per_sec", 0.0))
     walking = (abs(vx) > 0.01) and (getattr(g, "state", "idle") != "sleep")
-    flip_x = vx < 0
+
+    # Facing should persist even when the character stops.
+    # Sprite sheets are authored facing right; we flip at render time.
+    # Previously we derived facing from vx every frame, so vx==0 always snapped to right.
+    facing = int(getattr(g, "facing", 1))  # 1=right, -1=left
+    if vx < -0.01:
+        facing = -1
+    elif vx > 0.01:
+        facing = 1
+    setattr(g, "facing", facing)
+    flip_x = facing < 0
 
     # optional walk frames (keys: body_walk_0, body_walk_1, ...)
     walk_keys = [k for k in sprites.keys() if k.startswith("body_walk_")]

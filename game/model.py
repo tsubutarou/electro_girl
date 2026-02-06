@@ -99,6 +99,10 @@ class Girl:
     walk_until: float = 0.0
     next_walk_at: float = 0.0
 
+    # facing direction
+    # 1 = right (default sprite direction), -1 = left (render-time flip)
+    facing: int = 1
+
 
 def load_or_new() -> Girl:
     if os.path.exists(cfg.SAVE_PATH):
