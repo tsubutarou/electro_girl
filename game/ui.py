@@ -562,10 +562,10 @@ def make_buttons():
     talk.btn_talk.rect = pygame.Rect(cfg.LEFT_X + (btn_w + gap) * 3, y_bottom, 56, btn_h)
 
     # ---- top-right: ⚙(gear) ----
-    # NOTE: legacy CHAR button is removed (custom menu handles clothes/bg).
     top_y = 8
     gear.btn_gear.rect = pygame.Rect(cfg.W - 34, top_y, 26, 22)
     # relayout settings panel based on updated gear button rect
     gear.relayout()
 
+    # CHAR button is intentionally removed (replaced by unified custom menu).
     return btn_snack, btn_pet, btn_light, gear, talk, wardrobe, bg_menu, snack_menu

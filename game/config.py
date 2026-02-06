@@ -120,20 +120,28 @@ BUBBLE_PADDING_Y = 6
 BUBBLE_LINE_GAP = 2           # 行間の追加ピクセル
 
 
-# --- Custom unified menu (v0.1) ---
-CUSTOM_MENU_BTN_Y = 48
-CUSTOM_MENU_BTN_SIZE = 30
-CUSTOM_MENU_BTN_GAP = 6
+# --- Custom unified menu (v0.2) ---
+# NOTE: values below may be overridden again in the placement section.
 CUSTOM_MENU_PANEL_Y = 90
-THUMB_W = 120
-THUMB_H = 80
+"""Custom menu thumbnail sizing.
+
+These thumbnails are used by the unified custom menu (衣装/背景).
+The window can be relatively small, so we keep them compact to show
+multiple items without requiring scrolling.
+"""
+
+THUMB_W = 88
+THUMB_H = 56
 THUMB_FRAME = 2
 THUMB_RADIUS = 10
-THUMB_NAME_HEIGHT = 18
-THUMB_GAP = 14
+THUMB_NAME_HEIGHT = 16
+THUMB_GAP = 10
 
 # --- Custom menu placement ---
+# Top-right, to the left of the gear button.
 CUSTOM_MENU_REPLACE_CHAR = True
 CUSTOM_MENU_BTN_SIZE = 28
 CUSTOM_MENU_BTN_GAP = 6
-CUSTOM_MENU_BTN_Y = 10  # fallback (normally anchored to CHAR)
+CUSTOM_MENU_BTN_Y = 8
+# Reserve space for the gear button at the far right.
+CUSTOM_MENU_BTN_MARGIN_R = 40

@@ -327,6 +327,11 @@ def main():
     bg_values = [f"theme:{t.get('name','theme')}" for t in (cfg.BG_THEMES or [])]
     bg_values += [f"img:{bid}" for bid in bg_images.keys()]
 
+    # unified custom menu uses these thumbs
+    g._custom_bg_thumbs = bg_thumbs
+    # let render.py access clothes ids reliably
+    g.clothes_offsets = clothes_offsets
+
     # 右クリックメニュー（簡易）
     ctx_open = False
     ctx_buttons = []
@@ -659,81 +664,97 @@ def main():
                 if snack_menu.open and (not snack_menu.hit_any(pos)) and (not btn_snack.hit(pos)):
                     snack_menu.close()
 
-                # ---- unified custom menu (🎨 / ✨ / 👗) ----
-                # Buttons/rects are drawn & stored on g by game.custom_menu.draw_top_buttons.
-                btns_custom = getattr(g, "_custom_btns", None) or {}
-                if btns_custom:
-                    if btns_custom.get("custom") and btns_custom["custom"].collidepoint(pos):
-                        g.ui_mode = "main" if getattr(g, "ui_mode", "main") == "custom" else "custom"
-                        # Close legacy menus when custom opens
-                        if getattr(g, "ui_mode", "main") == "custom":
-                            try:
-                                gear.close(); talk.close(); wardrobe.close(); bg_menu.close(); snack_menu.close()
-                            except Exception:
-                                pass
-                        play_sfx("talk")
-                        continue
-
-                    if btns_custom.get("bg") and btns_custom["bg"].collidepoint(pos):
-                        g.ui_mode = "custom"
-                        g.custom_tab = "bg"
-                        try:
-                            gear.close(); talk.close(); wardrobe.close(); bg_menu.close(); snack_menu.close()
-                        except Exception:
-                            pass
-                        play_sfx("talk")
-                        continue
-
-                    if btns_custom.get("clothes") and btns_custom["clothes"].collidepoint(pos):
-                        g.ui_mode = "custom"
-                        g.custom_tab = "clothes"
-                        try:
-                            gear.close(); talk.close(); wardrobe.close(); bg_menu.close(); snack_menu.close()
-                        except Exception:
-                            pass
-                        play_sfx("talk")
-                        continue
-
-                # Item click inside custom menu
-                if getattr(g, "ui_mode", "main") == "custom":
-                    _picked = False
-                    for (kind, key), r in (getattr(g, "_custom_item_rects", []) or []):
-                        if not r.collidepoint(pos):
-                            continue
-
-                        if kind == "clothes":
-                            g.outfit = key
-                            save(g)
-                            play_sfx("talk")
-                            _picked = True
-                            break
-
-                        if kind == "bg":
-                            # key format: "theme:<name>" or "img:<id>"
-                            if isinstance(key, str) and key.startswith("img:"):
-                                g.bg_mode = "image"
-                                g.bg_image_id = key.split(":", 1)[1]
-                            elif isinstance(key, str) and key.startswith("theme:"):
-                                tname = key.split(":", 1)[1]
-                                g.bg_mode = "theme"
-                                # Map name -> index (fallback: keep current)
-                                try:
-                                    idx = next((i for i, t in enumerate(cfg.BG_THEMES or []) if str(t.get("name", "")) == tname), None)
-                                    if idx is not None:
-                                        g.bg_index = int(idx)
-                                except Exception:
-                                    pass
-                            save(g)
-                            play_sfx("talk")
-                            _picked = True
-                            break
-
-                    if _picked:
-                        continue
-
                 if gear.btn_gear.hit(pos):
                     gear.toggle()
                     continue
+
+                # ---- unified custom menu (top buttons + items) ----
+                btns_custom = getattr(g, "_custom_btns", {}) or {}
+                if btns_custom:
+                    r_bg = btns_custom.get("bg")
+                    r_cl = btns_custom.get("clothes")
+                    if r_bg and r_bg.collidepoint(pos):
+                        # Toggle open/close on same tab
+                        if getattr(g, "ui_mode", "main") == "custom" and getattr(g, "custom_tab", "clothes") == "bg":
+                            g.ui_mode = "main"
+                        else:
+                            g.ui_mode = "custom"
+                            g.custom_tab = "bg"
+                        play_sfx("talk")
+                        continue
+                    if r_cl and r_cl.collidepoint(pos):
+                        if getattr(g, "ui_mode", "main") == "custom" and getattr(g, "custom_tab", "clothes") == "clothes":
+                            g.ui_mode = "main"
+                        else:
+                            g.ui_mode = "custom"
+                            g.custom_tab = "clothes"
+                        play_sfx("talk")
+                        continue
+
+                if getattr(g, "ui_mode", "main") == "custom":
+                    # clicking outside the panel closes it
+                    panel_y = int(getattr(cfg, "CUSTOM_MENU_PANEL_Y", 90))
+                    panel_x = int(getattr(cfg, "LEFT_X", 12))
+                    right_x = int(getattr(cfg, "RIGHT_X", getattr(cfg, "W", 800) - 280))
+                    panel_w = max(200, right_x - panel_x - 16)
+                    panel_h = int(getattr(cfg, "H", 600)) - panel_y - 16
+                    panel_rect = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
+
+                    # scroll buttons (▲/▼) for paging thumbnails
+                    sb = getattr(g, "_custom_scroll_btns", None) or {}
+                    if sb:
+                        tab_now = getattr(g, "custom_tab", "clothes")
+                        # Up
+                        if sb.get("up") and sb["up"].collidepoint(pos):
+                            if tab_now == "bg":
+                                g.custom_scroll_bg = max(0, int(getattr(g, "custom_scroll_bg", 0)) - 1)
+                            else:
+                                g.custom_scroll_clothes = max(0, int(getattr(g, "custom_scroll_clothes", 0)) - 1)
+                            play_sfx("talk")
+                            continue
+                        # Down
+                        if sb.get("down") and sb["down"].collidepoint(pos):
+                            max_scroll = int(sb.get("max", 0))
+                            if tab_now == "bg":
+                                g.custom_scroll_bg = min(max_scroll, int(getattr(g, "custom_scroll_bg", 0)) + 1)
+                            else:
+                                g.custom_scroll_clothes = min(max_scroll, int(getattr(g, "custom_scroll_clothes", 0)) + 1)
+                            play_sfx("talk")
+                            continue
+
+                    clicked_item = False
+                    for (kind, value), rect in list(getattr(g, "_custom_item_rects", []) or []):
+                        if rect.collidepoint(pos):
+                            clicked_item = True
+                            if kind == "clothes":
+                                g.outfit = str(value)
+                                save(g)
+                                play_sfx("talk")
+                            elif kind == "bg":
+                                v = str(value)
+                                if v.startswith("theme:"):
+                                    name = v.split(":", 1)[1]
+                                    # switch to theme mode and select by name
+                                    g.bg_mode = "theme"
+                                    try:
+                                        for i, t in enumerate(cfg.BG_THEMES or []):
+                                            if str(t.get("name", "")) == name:
+                                                g.bg_index = i
+                                                break
+                                    except Exception:
+                                        pass
+                                elif v.startswith("img:"):
+                                    bid = v.split(":", 1)[1]
+                                    g.bg_mode = "image"
+                                    g.bg_image_id = bid
+                                save(g)
+                                play_sfx("talk")
+                            continue
+
+                    # if click isn't on any item and not on panel, close
+                    if (not clicked_item) and (not panel_rect.collidepoint(pos)):
+                        g.ui_mode = "main"
+                        continue
 
                 if gear.open:
                     if gear.btn_prev.hit(pos):

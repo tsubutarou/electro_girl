@@ -1,9 +1,15 @@
 """custom_menu.py
-Unified Custom Menu (衣装 + 背景) v0.1
+Unified Custom Menu (衣装 + 背景) v0.2
 
-- Top buttons: 🎨 (toggle), ✨ (bg tab), 👗 (clothes tab)
+- Top buttons (right aligned): BG / CLOTH
+  - Clicking a tab opens the menu.
+  - Clicking the same tab again closes it.
 - Menu content: tabbed grid
 - Thumbnail UI: frame + selected highlight + name label
+
+Notes:
+  Emoji rendering is unreliable depending on the bundled font.
+  This module uses ASCII labels by default to avoid mojibake.
 
 This module is intentionally standalone to avoid touching legacy ui.py menus.
 """
@@ -14,11 +20,17 @@ import pygame
 
 
 def draw_top_buttons(screen: pygame.Surface, font_ui: pygame.font.Font, g, cfg) -> dict[str, pygame.Rect]:
-    """Draw top buttons and store rects in g for click handling."""
-    y = int(getattr(cfg, "CUSTOM_MENU_BTN_Y", 48))
+    """Draw top buttons and store rects in g for click handling.
+
+    We anchor to the top-right to avoid colliding with the header text.
+    """
+    y = int(getattr(cfg, "CUSTOM_MENU_BTN_Y", 8))
     size = int(getattr(cfg, "CUSTOM_MENU_BTN_SIZE", 30))
     gap = int(getattr(cfg, "CUSTOM_MENU_BTN_GAP", 6))
-    x = int(getattr(cfg, "LEFT_X", 12))
+    margin_r = int(getattr(cfg, "CUSTOM_MENU_BTN_MARGIN_R", 8))
+
+    # Right aligned two buttons.
+    x = int(getattr(cfg, "W", 800)) - margin_r - (size * 2 + gap)
 
     def draw_btn(label: str) -> pygame.Rect:
         nonlocal x
@@ -31,12 +43,29 @@ def draw_top_buttons(screen: pygame.Surface, font_ui: pygame.font.Font, g, cfg) 
         return rect
 
     btns = {
-        "custom": draw_btn("🎨"),
-        "bg": draw_btn("✨"),
-        "clothes": draw_btn("👗"),
+        "bg": draw_btn("BG"),
+        "clothes": draw_btn("CL"),
     }
     g._custom_btns = btns
     return btns
+
+
+def _current_bg_value(g, cfg) -> str:
+    """Return current background selection as custom-menu key."""
+    mode = getattr(g, "bg_mode", "theme")
+    if mode == "image":
+        bid = getattr(g, "bg_image_id", "") or ""
+        return f"img:{bid}" if bid else ""
+    # theme
+    try:
+        themes = getattr(cfg, "BG_THEMES", []) or []
+        if not themes:
+            return ""
+        idx = int(getattr(g, "bg_index", 0)) % len(themes)
+        name = str(themes[idx].get("name", "theme"))
+        return f"theme:{name}"
+    except Exception:
+        return ""
 
 
 def _panel_rect(cfg) -> pygame.Rect:
@@ -60,7 +89,8 @@ def draw_custom_menu(screen: pygame.Surface, g, cfg, font_small: pygame.font.Fon
 
     tab = getattr(g, "custom_tab", "clothes")
     title = font_ui.render("カスタム", True, (235, 235, 245))
-    sub = font_small.render(("👗 衣装" if tab == "clothes" else "✨ 背景"), True, (200, 200, 215))
+    # Avoid emoji to prevent mojibake depending on the font.
+    sub = font_small.render(("服" if tab == "clothes" else "背景"), True, (200, 200, 215))
     screen.blit(title, (panel.x + 14, panel.y + 10))
     screen.blit(sub, (panel.x + 14, panel.y + 10 + title.get_height() + 2))
 
@@ -76,40 +106,71 @@ def draw_custom_menu(screen: pygame.Surface, g, cfg, font_small: pygame.font.Fon
     avail_w = panel.w - 28
     cols = max(1, avail_w // (thumb_w + gap))
 
+    # ---- build items (bg: themes + images, clothes: ids) ----
     items: list[tuple[str, str]] = []
     if tab == "bg":
-        # keys are like "theme:<name>" or "img:<id>"
         for key in sorted(bg_thumbs.keys()):
             items.append(("bg", key))
     else:
         for cid in clothes_ids:
             items.append(("clothes", cid))
 
+    # ---- paging / scrolling (row-based) ----
+    cell_h = (thumb_h + name_h + gap)
+    visible_rows = max(1, (panel.bottom - 10 - gy) // cell_h)
+    total_rows = (len(items) + cols - 1) // cols
+    max_scroll = max(0, total_rows - visible_rows)
+
+    if tab == "bg":
+        scroll = int(getattr(g, "custom_scroll_bg", 0))
+    else:
+        scroll = int(getattr(g, "custom_scroll_clothes", 0))
+    scroll = max(0, min(scroll, max_scroll))
+
+    if tab == "bg":
+        g.custom_scroll_bg = scroll
+    else:
+        g.custom_scroll_clothes = scroll
+
+    start_i = scroll * cols
+    end_i = start_i + (visible_rows * cols)
+    visible_items = items[start_i:end_i]
+
+    # ---- scroll buttons (▲/▼) ----
+    btn_size = 18
+    btn_gap = 6
+    bx = panel.right - 14 - btn_size
+    by = panel.y + 12
+    rect_up = pygame.Rect(bx, by, btn_size, btn_size)
+    rect_dn = pygame.Rect(bx, by + btn_size + btn_gap, btn_size, btn_size)
+
+    def _draw_scroll_btn(rect: pygame.Rect, enabled: bool, up: bool) -> None:
+        fill = (35, 35, 46) if enabled else (25, 25, 32)
+        edge = (90, 90, 110) if enabled else (60, 60, 76)
+        tri = (235, 235, 245) if enabled else (130, 130, 150)
+        pygame.draw.rect(screen, fill, rect, 0, 6)
+        pygame.draw.rect(screen, edge, rect, 2, 6)
+        if up:
+            pts = [(rect.centerx, rect.y + 5), (rect.x + 5, rect.bottom - 5), (rect.right - 5, rect.bottom - 5)]
+        else:
+            pts = [(rect.centerx, rect.bottom - 5), (rect.x + 5, rect.y + 5), (rect.right - 5, rect.y + 5)]
+        pygame.draw.polygon(screen, tri, pts)
+
+    _draw_scroll_btn(rect_up, scroll > 0, True)
+    _draw_scroll_btn(rect_dn, scroll < max_scroll, False)
+    g._custom_scroll_btns = {"up": rect_up, "down": rect_dn, "tab": tab, "max": max_scroll}
+
     rects: list[tuple[tuple[str, str], pygame.Rect]] = []
-    for idx, it in enumerate(items):
+    for idx, it in enumerate(visible_items):
         col = idx % cols
         row = idx // cols
         x = gx + col * (thumb_w + gap)
         y = gy + row * (thumb_h + name_h + gap)
         r = pygame.Rect(x, y, thumb_w, thumb_h + name_h)
-        if r.bottom > panel.bottom - 10:
-            break
 
         selected = False
         if it[0] == "bg":
-            key = it[1]
-            mode = getattr(g, "bg_mode", "theme")
-            if isinstance(key, str) and key.startswith("img:"):
-                selected = (mode == "image" and getattr(g, "bg_image_id", "") == key.split(":", 1)[1])
-            elif isinstance(key, str) and key.startswith("theme:"):
-                # match current theme name
-                tname = key.split(":", 1)[1]
-                try:
-                    cur = (cfg.BG_THEMES[getattr(g, "bg_index", 0) % len(cfg.BG_THEMES)].get("name", "")
-                           if cfg.BG_THEMES else "")
-                except Exception:
-                    cur = ""
-                selected = (mode != "image" and str(cur) == str(tname))
+            selected = (_current_bg_value(g, cfg) == it[1])
         if it[0] == "clothes" and getattr(g, "outfit", "normal") == it[1]:
             selected = True
 
@@ -121,7 +182,6 @@ def draw_custom_menu(screen: pygame.Surface, g, cfg, font_small: pygame.font.Fon
         if it[0] == "bg":
             surf = bg_thumbs.get(it[1])
             if surf:
-                # center-crop is handled elsewhere; here we just scale to fit
                 try:
                     s = surf
                     if s.get_width() != thumb_w or s.get_height() != thumb_h:
@@ -129,20 +189,18 @@ def draw_custom_menu(screen: pygame.Surface, g, cfg, font_small: pygame.font.Fon
                     screen.blit(s, s.get_rect(center=img_rect.center))
                 except Exception:
                     pass
-            # display nicer label
-            key = it[1]
-            if isinstance(key, str) and key.startswith("theme:"):
-                name = key.split(":", 1)[1]
-            elif isinstance(key, str) and key.startswith("img:"):
+            key = str(it[1])
+            # nicer label: theme:midnight -> midnight, img:a -> a
+            if ":" in key:
                 name = key.split(":", 1)[1]
             else:
-                name = str(key)
+                name = os.path.splitext(os.path.basename(key))[0]
         else:
             name = it[1]
             ib = pygame.Rect(img_rect.x + 12, img_rect.y + 12, img_rect.w - 24, img_rect.h - 24)
             pygame.draw.rect(screen, (45, 45, 58), ib, 0, 10)
             pygame.draw.rect(screen, (90, 90, 110), ib, 2, 10)
-            ic = font_ui.render("👗", True, (235, 235, 245))
+            ic = font_ui.render("CL", True, (235, 235, 245))
             screen.blit(ic, ic.get_rect(center=ib.center))
 
         label = font_small.render(name, True, (235, 235, 245))
@@ -151,3 +209,4 @@ def draw_custom_menu(screen: pygame.Surface, g, cfg, font_small: pygame.font.Fon
         rects.append((it, r))
 
     g._custom_item_rects = rects
+
