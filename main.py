@@ -527,6 +527,482 @@ def main():
         entries.sort(key=lambda x: (x[2], not x[3], x[1]))
         return cats, entries
 
+    # ============================================================
+    # 左クリック・ハンドラ群
+    # ------------------------------------------------------------
+    # 各ハンドラは「自分が担当するクリックを処理できたら True を返す」。
+    # True が返ったらイベントループ側はそのクリックを処理済みとして
+    # 後続ハンドラをスキップする（元コードの `continue` に相当）。
+    #
+    # ループ内で毎フレーム再計算される値（pos / now / cats / entries /
+    # outfits）は引数で受け取る。gear・talk 等のメニューオブジェクトや
+    # dlg・topics・snacks・sprites などはクロージャ経由で参照する。
+    # ============================================================
+
+    def handle_context_menu_click(pos, now):
+        """右クリックメニュー（EXIT / CANCEL）が開いている間のクリック。"""
+        nonlocal ctx_open, running
+        if not ctx_open:
+            return False
+        if ctx_buttons and len(ctx_buttons) >= 2:
+            if ctx_buttons[0].hit(pos):  # EXIT
+                ctx_open = False
+                request_quit(now)
+                running = False
+                return True
+            if ctx_buttons[1].hit(pos):  # CANCEL
+                ctx_open = False
+                return True
+        # 外側クリックでも閉じる
+        ctx_open = False
+        return True
+
+    def handle_journal_click(pos, now):
+        """ジャーナル（ログ）表示中はクリックで閉じるだけ。"""
+        nonlocal journal_open
+        if not journal_open:
+            return False
+        journal_open = False
+        return True
+
+    def close_menus_on_outside_click(pos):
+        """パネルの外側をクリックしたら、開いているメニューを閉じる。
+        ここでは True を返さない（元コードと同じく、判定を続行する）。"""
+        if gear.open and (not gear.hit_any(pos)) and (not gear.btn_gear.hit(pos)):
+            gear.close()
+        if talk.open and (not talk.hit_any(pos)) and (not talk.btn_talk.hit(pos)):
+            talk.close()
+        if wardrobe.open and (not wardrobe.hit_any(pos)):
+            wardrobe.close()
+        if bg_menu.open and (not bg_menu.hit_any(pos)):
+            bg_menu.close()
+        if snack_menu.open and (not snack_menu.hit_any(pos)) and (not btn_snack.hit(pos)):
+            snack_menu.close()
+
+    def handle_gear_toggle_click(pos):
+        """⚙ ボタン自体のクリックで開閉。"""
+        if gear.btn_gear.hit(pos):
+            gear.toggle()
+            return True
+        return False
+
+    def handle_custom_menu_click(pos, now):
+        """統合カスタムメニュー（上部ボタン bg/clothes + サムネ項目 + スクロール）。"""
+        # ---- 上部タブボタン（bg / clothes） ----
+        btns_custom = getattr(g, "_custom_btns", {}) or {}
+        if btns_custom:
+            r_bg = btns_custom.get("bg")
+            r_cl = btns_custom.get("clothes")
+            if r_bg and r_bg.collidepoint(pos):
+                # Toggle open/close on same tab
+                if getattr(g, "ui_mode", "main") == "custom" and getattr(g, "custom_tab", "clothes") == "bg":
+                    g.ui_mode = "main"
+                else:
+                    g.ui_mode = "custom"
+                    g.custom_tab = "bg"
+                play_sfx("talk")
+                return True
+            if r_cl and r_cl.collidepoint(pos):
+                if getattr(g, "ui_mode", "main") == "custom" and getattr(g, "custom_tab", "clothes") == "clothes":
+                    g.ui_mode = "main"
+                else:
+                    g.ui_mode = "custom"
+                    g.custom_tab = "clothes"
+                play_sfx("talk")
+                return True
+
+        # ---- カスタムメニューが開いている間の項目・スクロール・外側クリック ----
+        if getattr(g, "ui_mode", "main") == "custom":
+            # clicking outside the panel closes it
+            panel_y = int(getattr(cfg, "CUSTOM_MENU_PANEL_Y", 90))
+            panel_x = int(getattr(cfg, "LEFT_X", 12))
+            right_x = int(getattr(cfg, "RIGHT_X", getattr(cfg, "W", 800) - 280))
+            panel_w = max(200, right_x - panel_x - 16)
+            panel_h = int(getattr(cfg, "H", 600)) - panel_y - 16
+            panel_rect = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
+
+            # scroll buttons (▲/▼) for paging thumbnails
+            sb = getattr(g, "_custom_scroll_btns", None) or {}
+            if sb:
+                tab_now = getattr(g, "custom_tab", "clothes")
+                # Up
+                if sb.get("up") and sb["up"].collidepoint(pos):
+                    if tab_now == "bg":
+                        g.custom_scroll_bg = max(0, int(getattr(g, "custom_scroll_bg", 0)) - 1)
+                    else:
+                        g.custom_scroll_clothes = max(0, int(getattr(g, "custom_scroll_clothes", 0)) - 1)
+                    play_sfx("talk")
+                    return True
+                # Down
+                if sb.get("down") and sb["down"].collidepoint(pos):
+                    max_scroll = int(sb.get("max", 0))
+                    if tab_now == "bg":
+                        g.custom_scroll_bg = min(max_scroll, int(getattr(g, "custom_scroll_bg", 0)) + 1)
+                    else:
+                        g.custom_scroll_clothes = min(max_scroll, int(getattr(g, "custom_scroll_clothes", 0)) + 1)
+                    play_sfx("talk")
+                    return True
+
+            clicked_item = False
+            for (kind, value), rect in list(getattr(g, "_custom_item_rects", []) or []):
+                if rect.collidepoint(pos):
+                    clicked_item = True
+                    if kind == "clothes":
+                        g.outfit = str(value)
+                        save(g)
+                        play_sfx("talk")
+                    elif kind == "bg":
+                        v = str(value)
+                        if v.startswith("theme:"):
+                            name = v.split(":", 1)[1]
+                            # switch to theme mode and select by name
+                            g.bg_mode = "theme"
+                            try:
+                                for i, t in enumerate(cfg.BG_THEMES or []):
+                                    if str(t.get("name", "")) == name:
+                                        g.bg_index = i
+                                        break
+                            except Exception:
+                                pass
+                        elif v.startswith("img:"):
+                            bid = v.split(":", 1)[1]
+                            g.bg_mode = "image"
+                            g.bg_image_id = bid
+                        save(g)
+                        play_sfx("talk")
+                    continue
+
+            # if click isn't on any item and not on panel, close
+            if (not clicked_item) and (not panel_rect.collidepoint(pos)):
+                g.ui_mode = "main"
+                return True
+
+        return False
+
+    def handle_gear_panel_click(pos, now, outfits):
+        """⚙ メニューが開いている間の各項目クリック。"""
+        nonlocal journal_open, journal_scroll
+        if not gear.open:
+            return False
+
+        if gear.btn_prev.hit(pos):
+            gear.page_prev()
+            return True
+        if gear.btn_next.hit(pos):
+            gear.page_next()
+            return True
+        if gear.item_bg.hit(pos):
+            bg_menu.toggle()
+            if bg_menu.open:
+                bg_menu.relayout(bg_values, bg_thumbs)
+            play_sfx("talk")
+            return True
+
+        if gear.item_frame.hit(pos):
+            g.borderless = not getattr(g, "borderless", False)
+            msg = "次回から枠なしにする。" if g.borderless else "次回から枠ありに戻す。"
+            set_line(g, now, msg, (1.2, 2.5))
+            play_sfx("talk")
+            save(g)
+            return True
+
+        if gear.item_dock.hit(pos):
+            g.dock_bottom_right = not getattr(g, "dock_bottom_right", True)
+            if g.dock_bottom_right:
+                _move_window_bottom_right(margin=8)
+            msg = "右下に固定する。" if g.dock_bottom_right else "右下固定、解除。"
+            set_line(g, now, msg, (1.0, 2.0))
+            play_sfx("talk")
+            save(g)
+            return True
+
+        if gear.item_top.hit(pos):
+            g.always_on_top = not getattr(g, "always_on_top", False)
+            ok = _set_window_topmost(bool(g.always_on_top))
+            msg = "最前面にする。" if g.always_on_top else "最前面、解除。"
+            if not ok and sys.platform == "win32":
+                msg = msg + "（反映できないかも）"
+            set_line(g, now, msg, (1.0, 2.0))
+            play_sfx("talk")
+            save(g)
+            gear.update_labels(g)
+            return True
+
+        if gear.item_mute.hit(pos):
+            g.sfx_muted = not g.sfx_muted
+            set_line(g, now, "無音モード。" if g.sfx_muted else "音、戻した。", (1.0, 2.0))
+            save(g)
+            return True
+        if gear.item_up.hit(pos):
+            g.sfx_scale = min(1.0, g.sfx_scale + 0.10)
+            set_line(g, now, "音量あげる。", (0.8, 1.5))
+            save(g)
+            return True
+        if gear.item_down.hit(pos):
+            g.sfx_scale = max(0.0, g.sfx_scale - 0.10)
+            set_line(g, now, "音量さげる。", (0.8, 1.5))
+            save(g)
+            return True
+        if gear.item_outfit.hit(pos):
+            wardrobe.toggle()
+            if wardrobe.open:
+                wardrobe.relayout(outfits, sprites)
+            play_sfx("talk")
+            return True
+
+        if gear.item_log.hit(pos):
+            journal_open = True
+            journal_scroll = 0
+            return True
+
+        return False
+
+    def handle_wardrobe_click(pos, now, outfits):
+        """衣装一覧パネルのクリック（ページング・選択）。"""
+        if not wardrobe.open:
+            return False
+        # paging
+        if wardrobe.close_btn.hit(pos):
+            wardrobe.close()
+            return True
+        if wardrobe.prev_btn.hit(pos):
+            wardrobe.page = (wardrobe.page - 1) % max(1, wardrobe._max_pages)
+            wardrobe.relayout(outfits, sprites)
+            return True
+        if wardrobe.next_btn.hit(pos):
+            wardrobe.page = (wardrobe.page + 1) % max(1, wardrobe._max_pages)
+            wardrobe.relayout(outfits, sprites)
+            return True
+
+        # pick outfit
+        for it in wardrobe.items:
+            if it.hit(pos):
+                g.outfit = it.value
+                set_line(g, now, f"{it.value} に着替えた。", (1.0, 2.0))
+                play_sfx("talk")
+                save(g)
+                wardrobe.close()
+                break
+        # 元コードはここで continue しない（後続の判定に落ちる）ため False
+        return False
+
+    def handle_bg_menu_click(pos, now):
+        """背景一覧パネルのクリック（ページング・選択）。"""
+        if not bg_menu.open:
+            return False
+        if bg_menu.close_btn.hit(pos):
+            bg_menu.close()
+            return True
+        if bg_menu.prev_btn.hit(pos):
+            bg_menu.page = (bg_menu.page - 1) % max(1, bg_menu._max_pages)
+            bg_menu.relayout(bg_values, bg_thumbs)
+            return True
+        if bg_menu.next_btn.hit(pos):
+            bg_menu.page = (bg_menu.page + 1) % max(1, bg_menu._max_pages)
+            bg_menu.relayout(bg_values, bg_thumbs)
+            return True
+
+        for it in bg_menu.items:
+            if it.hit(pos):
+                v = it.value
+                if v.startswith("theme:"):
+                    name = v.split(":", 1)[1]
+                    # find theme index by name (fallback: 0)
+                    idx = 0
+                    for i, t in enumerate(cfg.BG_THEMES or []):
+                        if str(t.get("name", "")) == name:
+                            idx = i
+                            break
+                    g.bg_mode = "theme"
+                    g.bg_index = idx
+                    set_line(g, now, f"背景：{name}", (1.0, 2.0))
+                elif v.startswith("img:"):
+                    bid = v.split(":", 1)[1]
+                    g.bg_mode = "image"
+                    g.bg_image_id = bid
+                    set_line(g, now, f"背景：{bid}", (1.0, 2.0))
+                play_sfx("talk")
+                save(g)
+                bg_menu.close()
+                break
+        # 元コードはここで continue しない
+        return False
+
+    def handle_snack_menu_click(pos, now):
+        """おやつ一覧パネルのクリック（ページング・選択）。"""
+        if not snack_menu.open:
+            return False
+        if snack_menu.close_btn.hit(pos):
+            snack_menu.close()
+            return True
+        if snack_menu.prev_btn.hit(pos):
+            snack_menu.page = (snack_menu.page - 1) % max(1, snack_menu._max_pages)
+            snack_menu.relayout([s.id for s in snacks.items], snacks.icons)
+            return True
+        if snack_menu.next_btn.hit(pos):
+            snack_menu.page = (snack_menu.page + 1) % max(1, snack_menu._max_pages)
+            snack_menu.relayout([s.id for s in snacks.items], snacks.icons)
+            return True
+
+        # pick snack
+        for it in snack_menu.items:
+            if it.hit(pos):
+                sn = snacks.get(it.value)
+                if sn:
+                    action_snack(g, sn)
+                    g.last_snack_id = sn.id
+                    g.last_snack_at = now
+                    g.snack_count = getattr(g, "snack_count", 0) + 1
+                    tag = getattr(sn, "react_tag", "react_snack") or "react_snack"
+                    line = dlg.pick(tag) or dlg.pick("react_snack") or "おやつ！"
+                    set_line(g, now, line, (1.4, 3.0))
+                    play_sfx("talk")
+                    save(g)
+                snack_menu.close()
+                break
+        # 元コードはここで（ループ後に）continue する
+        return True
+
+    def handle_talk_click(pos, now, cats, entries):
+        """TALK ボタンと会話パネル（タブ・ページング・YES/NO・話題選択）。"""
+        if talk.btn_talk.hit(pos):
+            talk.toggle()
+            if talk.open:
+                talk.relayout(cats, entries)
+            return True
+
+        if not talk.open:
+            return False
+
+        if talk.close_btn.hit(pos):
+            talk.close()
+            return True
+
+        # tabs
+        for i, tab in enumerate(talk.tabs):
+            if tab.hit(pos) and i < len(cats):
+                talk.set_category(cats[i][0])
+                talk.relayout(cats, entries)
+                break
+
+        # paging
+        if talk.prev_btn.hit(pos):
+            talk.page_prev()
+            talk.relayout(cats, entries)
+            return True
+        if talk.next_btn.hit(pos):
+            talk.page_next()
+            talk.relayout(cats, entries)
+            return True
+
+        # YES/NO
+        if g.awaiting_choice:
+            if talk.btn_yes.hit(pos):
+                answer(True)
+                save(g)
+                return True
+            if talk.btn_no.hit(pos):
+                answer(False)
+                save(g)
+                return True
+
+        # topics
+        for i, b in enumerate(talk.topic_buttons):
+            if b.hit(pos):
+                if i < len(talk.topic_ids):
+                    tid = talk.topic_ids[i]
+                    locked = talk.topic_locked[i] if i < len(talk.topic_locked) else True
+                    if locked:
+                        t = topics.get(tid)
+                        hint = describe_unlock(t.unlock) if t else "条件を満たしたら、話せる。"
+                        set_line(g, now, hint, (2.0, 4.0))
+                        play_sfx("talk")
+                        talk.close()  # ★ A: 押したら閉じる
+                    else:
+                        start_topic(tid)
+                        play_sfx("talk")
+                        talk.close()  # ★ A: 押したら閉じる
+                        save(g)
+                # 元コードはここで continue（このイベントの処理終了）
+                return True
+        return False
+
+    def handle_character_click(pos, now):
+        """キャラ本体のクリック（タップ反応）。"""
+        char_rect = pygame.Rect(cfg.RIGHT_X, 92 - 44, cfg.RIGHT_PANEL_W, 88)
+        if char_rect.collidepoint(pos):
+            text = dlg.pick("tap") or "なになに？"
+            say_with_expression(text, (2.0, 4.0), "smile")
+            play_sfx("talk")
+            dlg.schedule_next_chatter(now)
+            return True
+        return False
+
+    def handle_action_buttons_click(pos, now):
+        """下部の行動ボタン（SNACK / PET / LIGHTS）。"""
+        # 行動前に歩行を止める（元コードの位置を保持）
+        _stop_walking(g, now)
+
+        if btn_snack.hit(pos):
+            play_sfx("snack")
+            snack_menu.toggle()
+            snacks.load_if_needed()
+            snack_menu.relayout([s.id for s in snacks.items], snacks.icons)
+            return True
+        elif btn_pet.hit(pos):
+            play_sfx("pet")
+            action_pet(g)
+            set_line(g, now, dlg.pick("react_pet") or "……！", (1.5, 3.0))
+            play_sfx("talk")
+        elif btn_light.hit(pos):
+            was = g.lights_off
+            action_toggle_lights(g)
+            play_sfx("off" if not was else "on")
+            tag = "react_lights_off" if not was else "react_lights_on"
+            set_line(g, now, dlg.pick(tag) or "……", (1.5, 3.0))
+            play_sfx("talk")
+        return False
+
+    def dispatch_left_click(pos, now, cats, entries, outfits):
+        """左クリックを各ハンドラへ順に振り分ける。
+        元の巨大な elif ブロックと同じ順序・同じ挙動を保つ。"""
+        # 1) 右クリックメニューが開いていれば最優先
+        if handle_context_menu_click(pos, now):
+            return
+        # 2) ジャーナル表示中は閉じるだけ
+        if handle_journal_click(pos, now):
+            return
+        # 3) パネル外クリックで各メニューを閉じる（判定は続行）
+        close_menus_on_outside_click(pos)
+        # 4) ⚙ ボタン開閉
+        if handle_gear_toggle_click(pos):
+            return
+        # 5) 統合カスタムメニュー
+        if handle_custom_menu_click(pos, now):
+            return
+        # 6) ⚙ パネル内項目
+        if handle_gear_panel_click(pos, now, outfits):
+            return
+        # 7) 衣装パネル（元コードは continue しないので戻り値で続行）
+        if handle_wardrobe_click(pos, now, outfits):
+            return
+        # 8) 背景パネル（同上）
+        if handle_bg_menu_click(pos, now):
+            return
+        # 9) おやつパネル
+        if handle_snack_menu_click(pos, now):
+            return
+        # 10) TALK ボタン・会話パネル
+        if handle_talk_click(pos, now, cats, entries):
+            return
+        # 11) キャラ本体タップ
+        if handle_character_click(pos, now):
+            return
+        # 12) 下部行動ボタン
+        if handle_action_buttons_click(pos, now):
+            return
+
+
     last_save = time.time()
     running = True
 
@@ -632,383 +1108,7 @@ def main():
                 continue
 
             elif e.type == pygame.MOUSEBUTTONDOWN and e.button == 1:
-                pos = e.pos
-
-                # 右クリックメニューが開いているなら、まずそれを処理
-                if ctx_open:
-                    if ctx_buttons and len(ctx_buttons) >= 2:
-                        if ctx_buttons[0].hit(pos):  # EXIT
-                            ctx_open = False
-                            request_quit(now)
-                            running = False
-                            continue
-                        if ctx_buttons[1].hit(pos):  # CANCEL
-                            ctx_open = False
-                            continue
-                    # 外側クリックでも閉じる
-                    ctx_open = False
-                    continue
-
-                if journal_open:
-                    journal_open = False
-                    continue
-
-                if gear.open and (not gear.hit_any(pos)) and (not gear.btn_gear.hit(pos)):
-                    gear.close()
-                if talk.open and (not talk.hit_any(pos)) and (not talk.btn_talk.hit(pos)):
-                    talk.close()
-                if wardrobe.open and (not wardrobe.hit_any(pos)):
-                    wardrobe.close()
-                if bg_menu.open and (not bg_menu.hit_any(pos)):
-                    bg_menu.close()
-                if snack_menu.open and (not snack_menu.hit_any(pos)) and (not btn_snack.hit(pos)):
-                    snack_menu.close()
-
-                if gear.btn_gear.hit(pos):
-                    gear.toggle()
-                    continue
-
-                # ---- unified custom menu (top buttons + items) ----
-                btns_custom = getattr(g, "_custom_btns", {}) or {}
-                if btns_custom:
-                    r_bg = btns_custom.get("bg")
-                    r_cl = btns_custom.get("clothes")
-                    if r_bg and r_bg.collidepoint(pos):
-                        # Toggle open/close on same tab
-                        if getattr(g, "ui_mode", "main") == "custom" and getattr(g, "custom_tab", "clothes") == "bg":
-                            g.ui_mode = "main"
-                        else:
-                            g.ui_mode = "custom"
-                            g.custom_tab = "bg"
-                        play_sfx("talk")
-                        continue
-                    if r_cl and r_cl.collidepoint(pos):
-                        if getattr(g, "ui_mode", "main") == "custom" and getattr(g, "custom_tab", "clothes") == "clothes":
-                            g.ui_mode = "main"
-                        else:
-                            g.ui_mode = "custom"
-                            g.custom_tab = "clothes"
-                        play_sfx("talk")
-                        continue
-
-                if getattr(g, "ui_mode", "main") == "custom":
-                    # clicking outside the panel closes it
-                    panel_y = int(getattr(cfg, "CUSTOM_MENU_PANEL_Y", 90))
-                    panel_x = int(getattr(cfg, "LEFT_X", 12))
-                    right_x = int(getattr(cfg, "RIGHT_X", getattr(cfg, "W", 800) - 280))
-                    panel_w = max(200, right_x - panel_x - 16)
-                    panel_h = int(getattr(cfg, "H", 600)) - panel_y - 16
-                    panel_rect = pygame.Rect(panel_x, panel_y, panel_w, panel_h)
-
-                    # scroll buttons (▲/▼) for paging thumbnails
-                    sb = getattr(g, "_custom_scroll_btns", None) or {}
-                    if sb:
-                        tab_now = getattr(g, "custom_tab", "clothes")
-                        # Up
-                        if sb.get("up") and sb["up"].collidepoint(pos):
-                            if tab_now == "bg":
-                                g.custom_scroll_bg = max(0, int(getattr(g, "custom_scroll_bg", 0)) - 1)
-                            else:
-                                g.custom_scroll_clothes = max(0, int(getattr(g, "custom_scroll_clothes", 0)) - 1)
-                            play_sfx("talk")
-                            continue
-                        # Down
-                        if sb.get("down") and sb["down"].collidepoint(pos):
-                            max_scroll = int(sb.get("max", 0))
-                            if tab_now == "bg":
-                                g.custom_scroll_bg = min(max_scroll, int(getattr(g, "custom_scroll_bg", 0)) + 1)
-                            else:
-                                g.custom_scroll_clothes = min(max_scroll, int(getattr(g, "custom_scroll_clothes", 0)) + 1)
-                            play_sfx("talk")
-                            continue
-
-                    clicked_item = False
-                    for (kind, value), rect in list(getattr(g, "_custom_item_rects", []) or []):
-                        if rect.collidepoint(pos):
-                            clicked_item = True
-                            if kind == "clothes":
-                                g.outfit = str(value)
-                                save(g)
-                                play_sfx("talk")
-                            elif kind == "bg":
-                                v = str(value)
-                                if v.startswith("theme:"):
-                                    name = v.split(":", 1)[1]
-                                    # switch to theme mode and select by name
-                                    g.bg_mode = "theme"
-                                    try:
-                                        for i, t in enumerate(cfg.BG_THEMES or []):
-                                            if str(t.get("name", "")) == name:
-                                                g.bg_index = i
-                                                break
-                                    except Exception:
-                                        pass
-                                elif v.startswith("img:"):
-                                    bid = v.split(":", 1)[1]
-                                    g.bg_mode = "image"
-                                    g.bg_image_id = bid
-                                save(g)
-                                play_sfx("talk")
-                            continue
-
-                    # if click isn't on any item and not on panel, close
-                    if (not clicked_item) and (not panel_rect.collidepoint(pos)):
-                        g.ui_mode = "main"
-                        continue
-
-                if gear.open:
-                    if gear.btn_prev.hit(pos):
-                        gear.page_prev()
-                        continue
-                    if gear.btn_next.hit(pos):
-                        gear.page_next()
-                        continue
-                    if gear.item_bg.hit(pos):
-                        bg_menu.toggle()
-                        if bg_menu.open:
-                            bg_menu.relayout(bg_values, bg_thumbs)
-                        play_sfx("talk")
-                        continue
-
-                    if gear.item_frame.hit(pos):
-                        g.borderless = not getattr(g, "borderless", False)
-                        msg = "次回から枠なしにする。" if g.borderless else "次回から枠ありに戻す。"
-                        set_line(g, now, msg, (1.2, 2.5))
-                        play_sfx("talk")
-                        save(g)
-                        continue
-
-                    if gear.item_dock.hit(pos):
-                        g.dock_bottom_right = not getattr(g, "dock_bottom_right", True)
-                        if g.dock_bottom_right:
-                            _move_window_bottom_right(margin=8)
-                        msg = "右下に固定する。" if g.dock_bottom_right else "右下固定、解除。"
-                        set_line(g, now, msg, (1.0, 2.0))
-                        play_sfx("talk")
-                        save(g)
-                        continue
-
-                    if gear.item_top.hit(pos):
-                        g.always_on_top = not getattr(g, "always_on_top", False)
-                        ok = _set_window_topmost(bool(g.always_on_top))
-                        msg = "最前面にする。" if g.always_on_top else "最前面、解除。"
-                        if not ok and sys.platform == "win32":
-                            msg = msg + "（反映できないかも）"
-                        set_line(g, now, msg, (1.0, 2.0))
-                        play_sfx("talk")
-                        save(g)
-                        gear.update_labels(g)
-                        continue
-
-                    if gear.item_mute.hit(pos):
-                        g.sfx_muted = not g.sfx_muted
-                        set_line(g, now, "無音モード。" if g.sfx_muted else "音、戻した。", (1.0, 2.0))
-                        save(g)
-                        continue
-                    if gear.item_up.hit(pos):
-                        g.sfx_scale = min(1.0, g.sfx_scale + 0.10)
-                        set_line(g, now, "音量あげる。", (0.8, 1.5))
-                        save(g)
-                        continue
-                    if gear.item_down.hit(pos):
-                        g.sfx_scale = max(0.0, g.sfx_scale - 0.10)
-                        set_line(g, now, "音量さげる。", (0.8, 1.5))
-                        save(g)
-                        continue
-                    if gear.item_outfit.hit(pos):
-                        wardrobe.toggle()
-                        if wardrobe.open:
-                            wardrobe.relayout(outfits, sprites)
-                        play_sfx("talk")
-                        continue
-
-                    if gear.item_log.hit(pos):
-                        journal_open = True
-                        journal_scroll = 0
-                        continue
-
-                if wardrobe.open:
-                    # paging
-                    if wardrobe.close_btn.hit(pos):
-                        wardrobe.close()
-                        continue
-                    if wardrobe.prev_btn.hit(pos):
-                        wardrobe.page = (wardrobe.page - 1) % max(1, wardrobe._max_pages)
-                        wardrobe.relayout(outfits, sprites)
-                        continue
-                    if wardrobe.next_btn.hit(pos):
-                        wardrobe.page = (wardrobe.page + 1) % max(1, wardrobe._max_pages)
-                        wardrobe.relayout(outfits, sprites)
-                        continue
-
-                    # pick outfit
-                    for it in wardrobe.items:
-                        if it.hit(pos):
-                            g.outfit = it.value
-                            set_line(g, now, f"{it.value} に着替えた。", (1.0, 2.0))
-                            play_sfx("talk")
-                            save(g)
-                            wardrobe.close()
-                            break
-
-                if bg_menu.open:
-                    if bg_menu.close_btn.hit(pos):
-                        bg_menu.close()
-                        continue
-                    if bg_menu.prev_btn.hit(pos):
-                        bg_menu.page = (bg_menu.page - 1) % max(1, bg_menu._max_pages)
-                        bg_menu.relayout(bg_values, bg_thumbs)
-                        continue
-                    if bg_menu.next_btn.hit(pos):
-                        bg_menu.page = (bg_menu.page + 1) % max(1, bg_menu._max_pages)
-                        bg_menu.relayout(bg_values, bg_thumbs)
-                        continue
-
-                    for it in bg_menu.items:
-                        if it.hit(pos):
-                            v = it.value
-                            if v.startswith("theme:"):
-                                name = v.split(":", 1)[1]
-                                # find theme index by name (fallback: 0)
-                                idx = 0
-                                for i, t in enumerate(cfg.BG_THEMES or []):
-                                    if str(t.get("name", "")) == name:
-                                        idx = i
-                                        break
-                                g.bg_mode = "theme"
-                                g.bg_index = idx
-                                set_line(g, now, f"背景：{name}", (1.0, 2.0))
-                            elif v.startswith("img:"):
-                                bid = v.split(":", 1)[1]
-                                g.bg_mode = "image"
-                                g.bg_image_id = bid
-                                set_line(g, now, f"背景：{bid}", (1.0, 2.0))
-                            play_sfx("talk")
-                            save(g)
-                            bg_menu.close()
-                            break
-
-                if snack_menu.open:
-                    if snack_menu.close_btn.hit(pos):
-                        snack_menu.close()
-                        continue
-                    if snack_menu.prev_btn.hit(pos):
-                        snack_menu.page = (snack_menu.page - 1) % max(1, snack_menu._max_pages)
-                        snack_menu.relayout([s.id for s in snacks.items], snacks.icons)
-                        continue
-                    if snack_menu.next_btn.hit(pos):
-                        snack_menu.page = (snack_menu.page + 1) % max(1, snack_menu._max_pages)
-                        snack_menu.relayout([s.id for s in snacks.items], snacks.icons)
-                        continue
-
-                    # pick snack
-                    for it in snack_menu.items:
-                        if it.hit(pos):
-                            sn = snacks.get(it.value)
-                            if sn:
-                                action_snack(g, sn)
-                                g.last_snack_id = sn.id
-                                g.last_snack_at = now
-                                g.snack_count = getattr(g, "snack_count", 0) + 1
-                                tag = getattr(sn, "react_tag", "react_snack") or "react_snack"
-                                line = dlg.pick(tag) or dlg.pick("react_snack") or "おやつ！"
-                                set_line(g, now, line, (1.4, 3.0))
-                                play_sfx("talk")
-                                save(g)
-                            snack_menu.close()
-                            break
-                    continue
-
-
-                if talk.btn_talk.hit(pos):
-                    talk.toggle()
-                    if talk.open:
-                        talk.relayout(cats, entries)
-                    continue
-
-                if talk.open:
-                    if talk.close_btn.hit(pos):
-                        talk.close()
-                        continue
-
-                    # tabs
-                    for i, tab in enumerate(talk.tabs):
-                        if tab.hit(pos) and i < len(cats):
-                            talk.set_category(cats[i][0])
-                            talk.relayout(cats, entries)
-                            break
-
-                    # paging
-                    if talk.prev_btn.hit(pos):
-                        talk.page_prev()
-                        talk.relayout(cats, entries)
-                        continue
-                    if talk.next_btn.hit(pos):
-                        talk.page_next()
-                        talk.relayout(cats, entries)
-                        continue
-
-                    # YES/NO
-                    if g.awaiting_choice:
-                        if talk.btn_yes.hit(pos):
-                            answer(True)
-                            save(g)
-                            continue
-                        if talk.btn_no.hit(pos):
-                            answer(False)
-                            save(g)
-                            continue
-
-                    # topics
-                    for i, b in enumerate(talk.topic_buttons):
-                        if b.hit(pos):
-                            if i < len(talk.topic_ids):
-                                tid = talk.topic_ids[i]
-                                locked = talk.topic_locked[i] if i < len(talk.topic_locked) else True
-                                if locked:
-                                    t = topics.get(tid)
-                                    hint = describe_unlock(t.unlock) if t else "条件を満たしたら、話せる。"
-                                    set_line(g, now, hint, (2.0, 4.0))
-                                    play_sfx("talk")
-                                    talk.close()  # ★ A: 押したら閉じる
-                                else:
-                                    start_topic(tid)
-                                    play_sfx("talk")
-                                    talk.close()  # ★ A: 押したら閉じる
-                                    save(g)
-                            continue
-
-                # キャラをクリック
-                char_rect = pygame.Rect(cfg.RIGHT_X, 92 - 44, cfg.RIGHT_PANEL_W, 88)
-                if char_rect.collidepoint(pos):
-                    text = dlg.pick("tap") or "なになに？"
-                    say_with_expression(text, (2.0, 4.0), "smile")
-                    play_sfx("talk")
-
-                    dlg.schedule_next_chatter(now)
-                    continue
-
-                # 行動ボタン
-                _stop_walking(g, now)
-
-                if btn_snack.hit(pos):
-                    play_sfx("snack")
-                    snack_menu.toggle()
-                    snacks.load_if_needed()
-                    snack_menu.relayout([s.id for s in snacks.items], snacks.icons)
-                    continue
-                elif btn_pet.hit(pos):
-                    play_sfx("pet")
-                    action_pet(g)
-                    set_line(g, now, dlg.pick("react_pet") or "……！", (1.5, 3.0))
-                    play_sfx("talk")
-                elif btn_light.hit(pos):
-                    was = g.lights_off
-                    action_toggle_lights(g)
-                    play_sfx("off" if not was else "on")
-                    tag = "react_lights_off" if not was else "react_lights_on"
-                    set_line(g, now, dlg.pick(tag) or "……", (1.5, 3.0))
-                    play_sfx("talk")
+                dispatch_left_click(e.pos, now, cats, entries, outfits)
 
             elif e.type == pygame.MOUSEWHEEL:
                 if journal_open:
